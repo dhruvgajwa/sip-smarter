@@ -154,13 +154,39 @@ export function calculateOptimalEntry(
 export type TimeframeWeights = Record<Timeframe, number>;
 
 /**
- * Default timeframe weights - longer periods are more statistically significant
+ * Default timeframe weights - heavily favor long-term data for buy-and-hold investors
  */
 export const DEFAULT_TIMEFRAME_WEIGHTS: TimeframeWeights = {
-  '1Y': 0.1,
-  '3Y': 0.2,
-  '5Y': 0.3,
-  '10Y': 0.4,
+  '1Y': 0.05,   // Minimal - too volatile for long-term decisions
+  '3Y': 0.15,   // Some relevance
+  '5Y': 0.30,   // Significant
+  '10Y': 0.50,  // Most reliable for long-term holders
+};
+
+/**
+ * Preset weight configurations
+ */
+export const WEIGHT_PRESETS: Record<string, { label: string; description: string; weights: TimeframeWeights }> = {
+  longTerm: {
+    label: 'Long-term Holder',
+    description: 'Best for 5+ year investment horizon',
+    weights: { '1Y': 0.05, '3Y': 0.15, '5Y': 0.30, '10Y': 0.50 },
+  },
+  balanced: {
+    label: 'Balanced',
+    description: 'Equal consideration across timeframes',
+    weights: { '1Y': 0.25, '3Y': 0.25, '5Y': 0.25, '10Y': 0.25 },
+  },
+  recentTrends: {
+    label: 'Recent Trends',
+    description: 'For shorter holding periods (1-3 years)',
+    weights: { '1Y': 0.40, '3Y': 0.30, '5Y': 0.20, '10Y': 0.10 },
+  },
+  decadeOnly: {
+    label: 'Decade Focus',
+    description: 'Only trust 10-year patterns',
+    weights: { '1Y': 0.00, '3Y': 0.10, '5Y': 0.30, '10Y': 0.60 },
+  },
 };
 
 /**
