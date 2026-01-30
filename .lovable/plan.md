@@ -1,5 +1,4 @@
 
-
 # 📊 Mutual Fund SIP Timing Analyzer Dashboard
 
 ## Overview
@@ -10,28 +9,26 @@ A comprehensive analytical dashboard that fetches NAV data from 3 Indian mutual 
 ## 🎯 Dashboard Features
 
 ### Analysis Capabilities
-1. **Best Day of Month Analysis (1-31)**
-   - Bar chart showing average NAV by calendar day
-   - Highlight best/worst days for SIP entry
-   - Percentage savings potential vs worst day
 
-2. **Best Week of Month Analysis (Week 1-4)**
-   - Comparative bar chart across weeks
-   - Week-over-week performance trends
+#### Time-Based Factors Analyzed
+1. **Day of Month (1-31)** - Which calendar day has lowest average NAV
+2. **Day of Week (Mon-Fri)** - Which weekday offers best entry
+3. **Week of Month (1-4/5)** - Which week is optimal for SIP
+4. **Month of Year (Jan-Dec)** - Seasonal patterns in NAV
+5. **Quarter (Q1-Q4)** - Quarterly performance patterns
+6. **First/Last Week Effect** - Beginning vs end of month patterns
 
-3. **Day-of-Week Patterns**
-   - Weekday performance comparison chart
-   - Historical patterns (Monday effect, etc.)
+#### Multi-Timeframe Analysis
+- **1 Year** - Recent short-term patterns
+- **3 Years** - Medium-term trends
+- **5 Years** - Long-term patterns
+- **10 Years** - Historical full-cycle analysis
 
-4. **NAV Trend Analysis**
-   - Line chart showing 3-year NAV history
-   - Moving averages (30-day, 90-day)
-   - Growth percentage indicators
-
-5. **Statistical Summary**
-   - Average NAV, volatility metrics
-   - Best entry point recommendations
-   - Potential savings calculations
+#### Data Slicing Capabilities
+- Filter by any time period
+- Compare patterns across timeframes
+- Toggle between funds or view all
+- Cross-reference multiple factors
 
 ### Funds to Analyze
 - HDFC Flexi Cap Fund (101762)
@@ -44,18 +41,20 @@ A comprehensive analytical dashboard that fetches NAV data from 3 Indian mutual 
 
 ### Frontend Dashboard
 - **Header**: Title + Refresh/Analyze button + Last updated timestamp
+- **Timeframe Selector**: 1Y / 3Y / 5Y / 10Y toggle buttons
 - **Fund Selector Tabs**: Switch between funds or view all
 - **Summary Cards**: Key metrics at a glance
 - **Charts Section**: Interactive visualizations
-- **Detailed Tables**: Full data breakdown
+- **Detailed Tables**: Full data breakdown with sorting/filtering
 - **Console Panel**: Collapsible log output
 
 ### Data Flow
-1. User clicks "Analyze" or selects a fund
-2. App fetches last 3 years of NAV data from MFAPI
-3. Data processed in-memory with statistical calculations
-4. Results rendered across charts and tables
-5. Console logs track progress
+1. User selects timeframe and fund
+2. App fetches historical NAV data from MFAPI
+3. Data filtered to selected timeframe
+4. Statistical analysis computed for all factors
+5. Results rendered across charts and tables
+6. Console logs track progress
 
 ### No Backend Required
 - Direct API calls to mfapi.in
@@ -71,49 +70,46 @@ A comprehensive analytical dashboard that fetches NAV data from 3 Indian mutual 
 │  📈 MF SIP Timing Analyzer          [Refresh Data] 🔄       │
 │  Last updated: Jan 30, 2026 10:45 AM                         │
 ├──────────────────────────────────────────────────────────────┤
+│  Timeframe: [1Y] [3Y] [5Y] [10Y]                             │
 │  ┌─────────┬─────────────────┬──────────────────┐            │
 │  │ All     │ HDFC Flexi Cap  │ Parag Parikh ... │ Bandhan   │
 │  └─────────┴─────────────────┴──────────────────┴───────────┤
 │                                                              │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐│
-│  │ Best Day   │ │ Best Week  │ │ Best       │ │ 3Y Return  ││
-│  │    15th    │ │   Week 3   │ │ Weekday    │ │   +42.3%   ││
-│  │  ▼ 0.8%    │ │  ▼ 0.5%    │ │  Tuesday   │ │            ││
+│  │ Best Day   │ │ Best Week  │ │ Best       │ │ Best       ││
+│  │   15th     │ │   Week 3   │ │ Weekday    │ │ Month      ││
+│  │  ▼ 0.8%    │ │  ▼ 0.5%    │ │  Tuesday   │ │  March     ││
 │  └────────────┘ └────────────┘ └────────────┘ └────────────┘│
 │                                                              │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │  📊 NAV Trend (3 Years)                               │  │
+│  │  📊 NAV Trend                                         │  │
 │  │  [Line chart with NAV history + moving averages]      │  │
-│  │                                                       │  │
 │  └───────────────────────────────────────────────────────┘  │
 │                                                              │
 │  ┌─────────────────────────┐ ┌─────────────────────────────┐│
-│  │ 📅 Day of Month Analysis│ │ 📆 Week of Month Analysis   ││
+│  │ 📅 Day of Month         │ │ 📆 Week of Month            ││
 │  │ [Bar chart 1-31 days]   │ │ [Bar chart Week 1-4]        ││
-│  │                         │ │                             ││
 │  └─────────────────────────┘ └─────────────────────────────┘│
 │                                                              │
 │  ┌─────────────────────────┐ ┌─────────────────────────────┐│
-│  │ 📊 Weekday Patterns     │ │ 🎯 Recommendation           ││
-│  │ [Bar chart Mon-Fri]     │ │ • SIP on 15th of month     ││
+│  │ 📊 Weekday Patterns     │ │ 📅 Monthly Patterns         ││
+│  │ [Bar chart Mon-Fri]     │ │ [Bar chart Jan-Dec]         ││
+│  └─────────────────────────┘ └─────────────────────────────┘│
+│                                                              │
+│  ┌─────────────────────────┐ ┌─────────────────────────────┐│
+│  │ 📊 Quarterly Patterns   │ │ 🎯 Recommendation           ││
+│  │ [Bar chart Q1-Q4]       │ │ • SIP on 15th of month     ││
 │  │                         │ │ • Prefer Tuesdays          ││
-│  │                         │ │ • Potential savings: 1.2%   ││
+│  │                         │ │ • Best months: Mar, Oct    ││
 │  └─────────────────────────┘ └─────────────────────────────┘│
 │                                                              │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │ 📋 Detailed Analysis Table                            │  │
-│  │ Day │ Avg NAV │ Min NAV │ Max NAV │ Samples │ Rank    │  │
-│  │ 1   │ 45.23   │ 38.12   │ 52.45   │ 36      │ 12      │  │
-│  │ 2   │ 44.98   │ 37.89   │ 51.23   │ 35      │ 8       │  │
-│  │ ... │ ...     │ ...     │ ...     │ ...     │ ...     │  │
+│  │ [Tabbed view: Day | Week | Weekday | Month | Quarter] │  │
 │  └───────────────────────────────────────────────────────┘  │
 │                                                              │
 ├──────────────────────────────────────────────────────────────┤
 │  ▼ Console Output                                            │
-│  > Fetching HDFC Flexi Cap data... ✓ (1095 records)         │
-│  > Fetching Parag Parikh data... ✓ (1090 records)           │
-│  > Computing day-of-month averages... ✓                      │
-│  > Analysis complete in 2.3s                                 │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -122,65 +118,65 @@ A comprehensive analytical dashboard that fetches NAV data from 3 Indian mutual 
 ## 📈 Charts & Visualizations
 
 ### 1. NAV Trend Line Chart
-- 3-year historical NAV data
+- Historical NAV data for selected timeframe
 - 30-day and 90-day moving average overlays
 - Hover tooltips with date and value
-- Zoom/pan capability
 
-### 2. Day of Month Bar Chart
-- X-axis: Days 1-31
-- Y-axis: Average NAV
+### 2. Day of Month Bar Chart (1-31)
+- Average NAV by calendar day
 - Color coding: Green (low/good) to Red (high/bad)
 - Highlight the best day
 
-### 3. Week of Month Bar Chart
-- 4 bars for Week 1-4
-- Percentage difference labels
+### 3. Week of Month Bar Chart (Week 1-5)
+- 4-5 bars comparing weekly averages
 - Best week highlighted
 
-### 4. Weekday Performance Chart
-- 5 bars for Mon-Fri
-- Shows daily patterns
-- Useful for timing within a week
+### 4. Weekday Performance Chart (Mon-Fri)
+- 5 bars showing weekday patterns
+- Identifies best entry day of week
 
-### 5. Comparison Heatmap (All Funds View)
-- Grid showing Day × Fund performance
-- Color intensity = relative NAV
-- Quick cross-fund comparison
+### 5. Month of Year Chart (Jan-Dec)
+- 12 bars showing monthly patterns
+- Seasonal trends visible
 
-### 6. Volatility Chart
-- Standard deviation by day/week
-- Helps identify stable vs volatile periods
+### 6. Quarterly Chart (Q1-Q4)
+- 4 bars for quarterly comparison
+- Market cycle patterns
+
+### 7. Timeframe Comparison (Optional)
+- Overlay patterns across 1Y/3Y/5Y/10Y
+- See if patterns hold across time
 
 ---
 
-## 📊 Detailed Analysis Tables
+## 📊 Analysis Tables
 
 ### Day Analysis Table
 | Day | Avg NAV | Min | Max | Volatility | Samples | Rank | vs Best |
-|-----|---------|-----|-----|------------|---------|------|---------|
-| 15  | 44.21   | 38.1| 50.2| 2.3%       | 36      | 1    | -       |
-| 8   | 44.35   | 38.5| 50.8| 2.5%       | 35      | 2    | +0.3%   |
 
-### Week Analysis Table
+### Week Analysis Table  
 | Week | Days | Avg NAV | Volatility | Rank |
-|------|------|---------|------------|------|
-| Week 3 | 15-21 | 44.32 | 2.1% | 1 |
 
 ### Weekday Analysis Table
-| Day | Avg NAV | Trend | Best For |
-|-----|---------|-------|----------|
-| Tuesday | 44.18 | ▼ | Entry |
+| Weekday | Avg NAV | Samples | Trend | Rank |
+
+### Month Analysis Table
+| Month | Avg NAV | Min | Max | Volatility | Rank |
+
+### Quarter Analysis Table
+| Quarter | Months | Avg NAV | Volatility | Rank |
 
 ---
 
 ## 🎯 Recommendation Engine
 
 ### Output Format
-- **Primary Recommendation**: "Invest on the 15th of each month"
-- **Secondary Tip**: "If possible, prefer Tuesdays"
-- **Potential Savings**: "Up to 1.2% better entry vs random dates"
-- **Confidence Level**: Based on data consistency
+- **Best Day**: "Invest on the 15th of each month"
+- **Best Weekday**: "Prefer Tuesdays for SIP execution"
+- **Best Week**: "Week 3 (15th-21st) historically lowest"
+- **Best Month**: "March and October show best entry points"
+- **Potential Savings**: "Up to X% better entry vs random dates"
+- **Pattern Consistency**: Shows if pattern holds across timeframes
 
 ---
 
@@ -188,53 +184,35 @@ A comprehensive analytical dashboard that fetches NAV data from 3 Indian mutual 
 
 ### Services
 - `mfApiService.ts` - Fetch and parse NAV data
-- `analysisService.ts` - Statistical calculations
-- `dateUtils.ts` - Date parsing and grouping helpers
+- `analysisService.ts` - Statistical calculations for all factors
+- `dateUtils.ts` - Date parsing, grouping, timeframe filtering
 
 ### UI Components
 - `Dashboard.tsx` - Main layout
+- `TimeframeSelector.tsx` - 1Y/3Y/5Y/10Y toggle
 - `FundTabs.tsx` - Fund selector
-- `SummaryCards.tsx` - Key metrics display
+- `SummaryCards.tsx` - Key metrics display (expanded)
 - `NavTrendChart.tsx` - Line chart component
 - `DayAnalysisChart.tsx` - Day of month bar chart
 - `WeekAnalysisChart.tsx` - Week comparison chart
 - `WeekdayChart.tsx` - Mon-Fri patterns
-- `AnalysisTable.tsx` - Detailed data table
-- `RecommendationCard.tsx` - AI-style recommendations
+- `MonthAnalysisChart.tsx` - Monthly patterns (NEW)
+- `QuarterAnalysisChart.tsx` - Quarterly patterns (NEW)
+- `AnalysisTable.tsx` - Tabbed detailed tables
+- `RecommendationCard.tsx` - Enhanced recommendations
 - `ConsolePanel.tsx` - Collapsible log viewer
-
-### Chart Library
-- Using Recharts (already installed)
-- Responsive and interactive charts
-- Consistent styling with dashboard theme
-
----
-
-## ⚡ Key Features
-
-| Feature | Description |
-|---------|-------------|
-| 📊 6+ Chart Types | Comprehensive visualization |
-| 🔄 On-Demand Refresh | Fetch latest data anytime |
-| 📱 Responsive Design | Works on desktop & tablet |
-| 🌙 Dark/Light Mode | System preference aware |
-| 📋 Export Ready | Tables can be copied |
-| ⚡ Fast Analysis | In-memory processing |
-| 🎯 Clear Recommendations | Actionable insights |
-| 🔍 Console Logs | Full transparency |
 
 ---
 
 ## 🚀 Implementation Steps
 
-1. **Create analysis services** - API fetching, date utilities, statistical functions
-2. **Build dashboard layout** - Header, tabs, grid structure
-3. **Implement summary cards** - Key metrics components
-4. **Add NAV trend chart** - Line chart with moving averages
-5. **Build day/week/weekday charts** - Bar chart components
-6. **Create detailed tables** - Sortable data tables
-7. **Add recommendation engine** - Generate insights from analysis
-8. **Implement console panel** - Collapsible log viewer
-9. **Add loading states** - Skeleton loaders, progress indicators
-10. **Polish UI** - Responsive design, theme support
-
+1. ✅ Create analysis services - API fetching, date utilities
+2. ✅ Build dashboard layout - Header, tabs, grid structure  
+3. ✅ Implement basic charts - Day, Week, Weekday
+4. **Add timeframe selector** - 1Y/3Y/5Y/10Y toggle
+5. **Add monthly analysis** - Jan-Dec patterns
+6. **Add quarterly analysis** - Q1-Q4 patterns
+7. **Enhance analysis service** - Support all timeframes
+8. **Update recommendations** - Include all factors
+9. **Add pattern comparison** - Cross-timeframe view
+10. Polish UI - Loading states, responsive design
