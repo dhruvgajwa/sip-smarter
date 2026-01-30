@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { IndianRupee } from 'lucide-react';
@@ -40,46 +39,34 @@ export function MonthlyDistributionSection({ multiAnalysis }: MonthlyDistributio
 
   if (!multiAnalysis) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Monthly Allocation Analysis</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            Fetch data to see monthly distribution strategies.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="text-muted-foreground text-sm">
+        Fetch data to see monthly distribution strategies.
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Configuration Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div className="space-y-4">
+      {/* Compact Configuration Panel */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <TimeframeWeightsInput weights={weights} onChange={setWeights} />
         
-        <Card className="bg-muted/30 border-border">
-          <CardContent className="pt-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <IndianRupee className="h-4 w-4 text-muted-foreground" />
-              <Label className="text-sm font-medium">Monthly Base Amount</Label>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-muted-foreground">₹</span>
-              <Input
-                type="text"
-                value={baseAmount.toLocaleString('en-IN')}
-                onChange={(e) => handleBaseAmountChange(e.target.value)}
-                className="font-mono text-lg"
-                placeholder="10,000"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Enter your planned monthly SIP amount. Analysis will show if a weighted distribution makes sense.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-muted/30 rounded-lg p-3 border border-border">
+          <div className="flex items-center gap-2 mb-2">
+            <IndianRupee className="h-4 w-4 text-muted-foreground" />
+            <Label className="text-xs font-medium">Monthly Base Amount</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground text-sm">₹</span>
+            <Input
+              type="text"
+              value={baseAmount.toLocaleString('en-IN')}
+              onChange={(e) => handleBaseAmountChange(e.target.value)}
+              className="font-mono h-8 text-sm"
+              placeholder="10,000"
+            />
+          </div>
+        </div>
       </div>
       
       {/* Distribution Strategy Analysis */}
