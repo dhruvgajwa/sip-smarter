@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Target } from 'lucide-react';
 import type { MultiTimeframeAnalysis } from '@/types/multiTimeframeAnalysis';
+import type { TimeframeWeights } from '@/types/strategy';
 import { OptimalEntryCard } from './OptimalEntryCard';
 import { DistributionStrategyCard } from './DistributionStrategyCard';
+import { TimeframeWeightsInput } from './TimeframeWeightsInput';
 import { useStrategyAnalysis } from '@/hooks/useStrategyAnalysis';
 import { FUNDS } from '@/types/mutualFund';
+import { DEFAULT_TIMEFRAME_WEIGHTS } from '@/services/strategyService';
 
 interface StrategySectionProps {
   multiAnalysis: Map<number, MultiTimeframeAnalysis>;
@@ -12,11 +16,13 @@ interface StrategySectionProps {
 }
 
 export function StrategySection({ multiAnalysis, selectedFund }: StrategySectionProps) {
+  const [weights, setWeights] = useState<TimeframeWeights>(DEFAULT_TIMEFRAME_WEIGHTS);
+  
   // Get the current fund's multi-timeframe analysis
   const currentFundCode = selectedFund === 'all' ? FUNDS[0].code : selectedFund;
   const currentMultiAnalysis = multiAnalysis.get(currentFundCode) || null;
   
-  const { optimalEntry, distributionStrategy } = useStrategyAnalysis(currentMultiAnalysis);
+  const { optimalEntry, distributionStrategy } = useStrategyAnalysis(currentMultiAnalysis, weights);
   
   const fundName = currentMultiAnalysis?.fundName || 'Selected Fund';
 
@@ -49,6 +55,8 @@ export function StrategySection({ multiAnalysis, selectedFund }: StrategySection
           </p>
         </div>
       </div>
+      
+      <TimeframeWeightsInput weights={weights} onChange={setWeights} />
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <OptimalEntryCard analysis={optimalEntry} />

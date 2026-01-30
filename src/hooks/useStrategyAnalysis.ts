@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { MultiTimeframeAnalysis } from '@/types/multiTimeframeAnalysis';
-import type { OptimalEntryAnalysis, DistributionStrategy } from '@/types/strategy';
+import type { OptimalEntryAnalysis, DistributionStrategy, TimeframeWeights } from '@/types/strategy';
 import { calculateOptimalEntry, calculateDistributionStrategy } from '@/services/strategyService';
 
 interface UseStrategyAnalysisReturn {
@@ -12,7 +12,8 @@ interface UseStrategyAnalysisReturn {
  * Hook to compute optimal entry and distribution strategies
  */
 export function useStrategyAnalysis(
-  multiAnalysis: MultiTimeframeAnalysis | null
+  multiAnalysis: MultiTimeframeAnalysis | null,
+  customWeights?: TimeframeWeights
 ): UseStrategyAnalysisReturn {
   return useMemo(() => {
     if (!multiAnalysis) {
@@ -20,8 +21,8 @@ export function useStrategyAnalysis(
     }
     
     const optimalEntry = calculateOptimalEntry(multiAnalysis);
-    const distributionStrategy = calculateDistributionStrategy(multiAnalysis);
+    const distributionStrategy = calculateDistributionStrategy(multiAnalysis, customWeights);
     
     return { optimalEntry, distributionStrategy };
-  }, [multiAnalysis]);
+  }, [multiAnalysis, customWeights]);
 }

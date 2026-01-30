@@ -151,14 +151,16 @@ export function calculateOptimalEntry(
 /**
  * Calculate optimal monthly distribution strategy
  */
+export type TimeframeWeights = Record<Timeframe, number>;
+
 /**
- * Timeframe weights - longer periods are more statistically significant
+ * Default timeframe weights - longer periods are more statistically significant
  */
-const TIMEFRAME_WEIGHTS: Record<Timeframe, number> = {
-  '1Y': 0.1,   // Recent but volatile, low weight
-  '3Y': 0.2,   // Short-medium term
-  '5Y': 0.3,   // Medium-long term
-  '10Y': 0.4,  // Most reliable, highest weight
+export const DEFAULT_TIMEFRAME_WEIGHTS: TimeframeWeights = {
+  '1Y': 0.1,
+  '3Y': 0.2,
+  '5Y': 0.3,
+  '10Y': 0.4,
 };
 
 /**
@@ -166,8 +168,10 @@ const TIMEFRAME_WEIGHTS: Record<Timeframe, number> = {
  * Uses weighted averaging where longer timeframes have higher significance
  */
 export function calculateDistributionStrategy(
-  multiAnalysis: MultiTimeframeAnalysis
+  multiAnalysis: MultiTimeframeAnalysis,
+  customWeights?: TimeframeWeights
 ): DistributionStrategy {
+  const weights = customWeights || DEFAULT_TIMEFRAME_WEIGHTS;
   const { fundCode, fundName, analyses } = multiAnalysis;
   
   const linearAllocation = 1 / 12; // 8.33%
@@ -203,7 +207,7 @@ export function calculateDistributionStrategy(
         deviationValues.push(monthBucket.avgDeviation);
         
         // Weighted contribution
-        const weight = TIMEFRAME_WEIGHTS[tf];
+        const weight = weights[tf];
         weightedSum += monthBucket.avgDeviation * weight;
         totalWeight += weight;
       }
