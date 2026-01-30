@@ -84,20 +84,38 @@ export function MonthlyOptimalEntrySection({ analysis, fundName }: MonthlyOptima
         </CardContent>
       </Card>
 
-      {/* 12-Month Overview Grid */}
+      {/* 12-Month Overview List */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Year-at-a-Glance: Best Entry Day by Month</CardTitle>
+          <CardTitle className="text-base">Year-at-a-Glance</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <CardContent className="pt-0">
+          <div className="divide-y divide-border">
             {analysis.monthlyConsensus.map((consensus) => (
-              <MonthCard 
+              <button
                 key={consensus.month}
-                consensus={consensus}
-                isSelected={selectedMonth === consensus.month}
                 onClick={() => setSelectedMonth(consensus.month)}
-              />
+                className={`w-full flex items-center justify-between py-3 px-2 text-left hover:bg-muted/50 transition-colors ${
+                  selectedMonth === consensus.month ? 'bg-primary/10' : ''
+                }`}
+              >
+                <span className="font-medium">{consensus.monthName}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-primary font-bold">{consensus.consensusBestDayLabel}</span>
+                  <Badge 
+                    variant="outline" 
+                    className={`text-xs ${
+                      consensus.confidence === 'high' 
+                        ? 'border-emerald-500/50 text-emerald-400'
+                        : consensus.confidence === 'medium'
+                        ? 'border-amber-500/50 text-amber-400'
+                        : 'border-border text-muted-foreground'
+                    }`}
+                  >
+                    {consensus.agreementScore.toFixed(0)}%
+                  </Badge>
+                </div>
+              </button>
             ))}
           </div>
         </CardContent>
@@ -119,39 +137,6 @@ export function MonthlyOptimalEntrySection({ analysis, fundName }: MonthlyOptima
   );
 }
 
-/**
- * Individual month card in the grid
- */
-function MonthCard({ 
-  consensus, 
-  isSelected, 
-  onClick 
-}: { 
-  consensus: MonthConsensus; 
-  isSelected: boolean;
-  onClick: () => void;
-}) {
-  const bgColor = consensus.confidence === 'high' 
-    ? 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-500/50'
-    : consensus.confidence === 'medium'
-    ? 'bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50'
-    : 'bg-muted/50 border-border hover:border-primary/30';
-
-  return (
-    <button
-      onClick={onClick}
-      className={`p-3 rounded-lg border transition-all text-left ${bgColor} ${
-        isSelected ? 'ring-2 ring-primary' : ''
-      }`}
-    >
-      <div className="text-xs text-muted-foreground mb-1">{consensus.monthName.slice(0, 3)}</div>
-      <div className="text-2xl font-bold text-foreground">{consensus.consensusBestDayLabel}</div>
-      <div className="text-xs text-muted-foreground mt-1">
-        {consensus.agreementScore.toFixed(0)}% agree
-      </div>
-    </button>
-  );
-}
 
 /**
  * Detailed view for selected month
