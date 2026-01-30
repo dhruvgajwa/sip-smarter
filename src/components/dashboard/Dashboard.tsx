@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { RefreshCw, TrendingUp, CalendarDays, PieChart, BarChart3, BookOpen } from 'lucide-react';
+import { RefreshCw, TrendingUp, CalendarDays, PieChart, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
@@ -24,8 +24,8 @@ import { MonthAnalysisChart } from './MonthAnalysisChart';
 import { QuarterAnalysisChart } from './QuarterAnalysisChart';
 import { AnalysisTable } from './AnalysisTable';
 import { MultiTimeframeSection } from './MultiTimeframeSection';
-import { StrategySection } from './StrategySection';
 import { MonthlyOptimalEntrySection } from './MonthlyOptimalEntrySection';
+import { MonthlyDistributionSection } from './MonthlyDistributionSection';
 
 /**
  * Section wrapper component for visual hierarchy
@@ -67,9 +67,9 @@ function DashboardSection({
 function ReportNav({ activeSection }: { activeSection: string }) {
   const sections = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
-    { id: 'entry-point', label: 'Optimal Entry', icon: CalendarDays },
-    { id: 'distribution', label: 'Distribution', icon: PieChart },
-    { id: 'deep-dive', label: 'Deep Dive', icon: BarChart3 },
+    { id: 'sip-date', label: 'Best SIP Date', icon: CalendarDays },
+    { id: 'monthly-allocation', label: 'Monthly Allocation', icon: PieChart },
+    { id: 'deep-dive', label: 'Raw Data', icon: BarChart3 },
   ];
 
   return (
@@ -124,7 +124,7 @@ export function Dashboard() {
   // Track active section based on scroll
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ['overview', 'entry-point', 'distribution', 'deep-dive'];
+      const sections = ['overview', 'sip-date', 'monthly-allocation', 'deep-dive'];
       const scrollPosition = window.scrollY + 150;
       
       for (const section of sections.reverse()) {
@@ -160,6 +160,9 @@ export function Dashboard() {
   const currentMonthlyEntry = selectedFund === 'all'
     ? (monthlyOptimalEntry.size > 0 ? monthlyOptimalEntry.values().next().value : null)
     : monthlyOptimalEntry.get(selectedFund) || null;
+
+  // Get multi-timeframe analysis for selected fund
+  const currentMultiAnalysis = multiAnalysis.get(currentFundCode) || null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -230,39 +233,35 @@ export function Dashboard() {
             <div className="border-t border-border" />
 
             {/* ============================================== */}
-            {/* SECTION 2: OPTIMAL ENTRY POINT                */}
-            {/* The main story: When should you invest?       */}
+            {/* SECTION 2: BEST SIP DATE                      */}
+            {/* Primary question: Which day of month to SIP?  */}
             {/* ============================================== */}
             <DashboardSection
-              id="entry-point"
-              title="Story 1: Optimal Entry Point"
-              subtitle="When is the best time to invest each month? Find the optimal SIP date based on historical patterns."
+              id="sip-date"
+              title="Best SIP Date"
+              subtitle="Which day of the month should you set your SIP? Month-by-month analysis with cross-timeframe validation."
               icon={CalendarDays}
             >
-              <div className="space-y-8">
-                {/* Monthly Optimal Entry - The comprehensive month-by-month analysis */}
-                <MonthlyOptimalEntrySection 
-                  analysis={currentMonthlyEntry}
-                  fundName={currentFundName}
-                />
-              </div>
+              <MonthlyOptimalEntrySection 
+                analysis={currentMonthlyEntry}
+                fundName={currentFundName}
+              />
             </DashboardSection>
 
             <div className="border-t border-border" />
 
             {/* ============================================== */}
-            {/* SECTION 3: DISTRIBUTION STRATEGY              */}
-            {/* Secondary story: How to split your investment */}
+            {/* SECTION 3: MONTHLY ALLOCATION                 */}
+            {/* Secondary question: Which months to invest more? */}
             {/* ============================================== */}
             <DashboardSection
-              id="distribution"
-              title="Story 2: Investment Distribution"
-              subtitle="Should you invest all at once or spread across multiple dates? Analysis of distribution strategies."
+              id="monthly-allocation"
+              title="Monthly Allocation"
+              subtitle="Should you invest the same amount every month, or allocate more during historically cheaper months?"
               icon={PieChart}
             >
-              <StrategySection 
-                multiAnalysis={multiAnalysis} 
-                selectedFund={selectedFund} 
+              <MonthlyDistributionSection 
+                multiAnalysis={currentMultiAnalysis}
               />
             </DashboardSection>
 
@@ -274,7 +273,7 @@ export function Dashboard() {
             {/* ============================================== */}
             <DashboardSection
               id="deep-dive"
-              title="Deep Dive: Raw Analysis"
+              title="Raw Data & Factor Analysis"
               subtitle="Explore the underlying data and multi-timeframe comparisons that power our recommendations."
               icon={BarChart3}
             >

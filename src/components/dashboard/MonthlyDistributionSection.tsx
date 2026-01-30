@@ -2,32 +2,32 @@ import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Target, IndianRupee } from 'lucide-react';
+import { IndianRupee } from 'lucide-react';
 import type { MultiTimeframeAnalysis } from '@/types/multiTimeframeAnalysis';
 import type { TimeframeWeights } from '@/types/strategy';
-import { OptimalEntryCard } from './OptimalEntryCard';
 import { DistributionStrategyCard } from './DistributionStrategyCard';
 import { TimeframeWeightsInput } from './TimeframeWeightsInput';
 import { useStrategyAnalysis } from '@/hooks/useStrategyAnalysis';
-import { FUNDS } from '@/types/mutualFund';
 import { DEFAULT_TIMEFRAME_WEIGHTS } from '@/services/strategyService';
 
-interface StrategySectionProps {
-  multiAnalysis: Map<number, MultiTimeframeAnalysis>;
-  selectedFund: number | 'all';
+interface MonthlyDistributionSectionProps {
+  multiAnalysis: MultiTimeframeAnalysis | null;
 }
 
-export function StrategySection({ multiAnalysis, selectedFund }: StrategySectionProps) {
+/**
+ * Section for monthly allocation distribution analysis.
+ * 
+ * This answers: "Should I invest the same amount every month, 
+ * or allocate more during months that are historically cheaper?"
+ * 
+ * This is DIFFERENT from "Best SIP Date" which answers:
+ * "Which DAY of the month should I set my SIP?"
+ */
+export function MonthlyDistributionSection({ multiAnalysis }: MonthlyDistributionSectionProps) {
   const [weights, setWeights] = useState<TimeframeWeights>(DEFAULT_TIMEFRAME_WEIGHTS);
   const [baseAmount, setBaseAmount] = useState<number>(10000);
   
-  // Get the current fund's multi-timeframe analysis
-  const currentFundCode = selectedFund === 'all' ? FUNDS[0].code : selectedFund;
-  const currentMultiAnalysis = multiAnalysis.get(currentFundCode) || null;
-  
-  const { optimalEntry, distributionStrategy } = useStrategyAnalysis(currentMultiAnalysis, weights);
-  
-  const fundName = currentMultiAnalysis?.fundName || 'Selected Fund';
+  const { distributionStrategy } = useStrategyAnalysis(multiAnalysis, weights);
 
   const handleBaseAmountChange = (value: string) => {
     const num = parseInt(value.replace(/[^0-9]/g, ''), 10);
@@ -38,18 +38,15 @@ export function StrategySection({ multiAnalysis, selectedFund }: StrategySection
     }
   };
 
-  if (multiAnalysis.size === 0) {
+  if (!multiAnalysis) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Target className="h-5 w-5" />
-            Investment Strategy
-          </CardTitle>
+          <CardTitle className="text-base">Monthly Allocation Analysis</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Fetch data to see optimal entry points and distribution strategies.
+            Fetch data to see monthly distribution strategies.
           </p>
         </CardContent>
       </Card>
@@ -58,7 +55,7 @@ export function StrategySection({ multiAnalysis, selectedFund }: StrategySection
 
   return (
     <div className="space-y-6">
-      
+      {/* Configuration Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <TimeframeWeightsInput weights={weights} onChange={setWeights} />
         
@@ -79,16 +76,14 @@ export function StrategySection({ multiAnalysis, selectedFund }: StrategySection
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Enter your planned monthly SIP amount. Distribution percentages will be applied to this base.
+              Enter your planned monthly SIP amount. Analysis will show if a weighted distribution makes sense.
             </p>
           </CardContent>
         </Card>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <OptimalEntryCard analysis={optimalEntry} />
-        <DistributionStrategyCard strategy={distributionStrategy} baseAmount={baseAmount} />
-      </div>
+      {/* Distribution Strategy Analysis */}
+      <DistributionStrategyCard strategy={distributionStrategy} baseAmount={baseAmount} />
     </div>
   );
 }
