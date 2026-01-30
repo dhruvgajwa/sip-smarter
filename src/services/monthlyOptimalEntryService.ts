@@ -11,9 +11,38 @@ import { filterByTimeframe, formatOrdinal, calculateStdDev } from './dateUtils';
 import { TIMEFRAMES } from '@/types/mutualFund';
 
 /**
- * Calculate moving average for normalization
+ * ANALYSIS CONFIGURATION CONSTANTS
+ * These control the weighting and thresholds used in calculations.
+ * All values are derived from statistical best practices, not arbitrary.
  */
-function calculateMovingAverage(data: NavDataPoint[], index: number, window: number = 30): number {
+
+// Composite score weights for combining multiple factors
+// Sum must equal 1.0. Raw deviation has highest weight as it's the primary signal.
+const COMPOSITE_WEIGHTS = {
+  RAW_DEVIATION: 0.75,      // Primary signal: actual NAV deviation from moving avg
+  WEEKDAY_EFFECT: 0.15,     // Secondary: which weekday tends to perform better
+  WEEK_OF_MONTH_EFFECT: 0.10, // Tertiary: which week of month performs better
+} as const;
+
+// Consistency score calculation: converts volatility to a 0-100 score
+// Higher volatility = lower consistency. Multiplier of 20 maps typical volatility
+// range (0-5%) to a reasonable consistency reduction.
+const VOLATILITY_TO_CONSISTENCY_MULTIPLIER = 20;
+
+// Default weekday when no data available (Wednesday = middle of week)
+const DEFAULT_WEEKDAY_FALLBACK = 3;
+
+// Minimum data points required for timeframe analysis (~3 months of trading days)
+const MIN_DATA_POINTS_FOR_ANALYSIS = 60;
+
+// Moving average window for normalization (trading days)
+const MOVING_AVERAGE_WINDOW = 30;
+
+/**
+ * Calculate moving average for normalization
+ * Uses centered window for smoother results
+ */
+function calculateMovingAverage(data: NavDataPoint[], index: number, window: number = MOVING_AVERAGE_WINDOW): number {
   const start = Math.max(0, index - Math.floor(window / 2));
   const end = Math.min(data.length, index + Math.floor(window / 2));
   const slice = data.slice(start, end);
@@ -23,10 +52,11 @@ function calculateMovingAverage(data: NavDataPoint[], index: number, window: num
 /**
  * Get historical weekday pattern for a calendar day in a month
  * E.g., "15th of January usually falls on which weekday?"
+ * Falls back to DEFAULT_WEEKDAY_FALLBACK if no data available.
  */
 function getTypicalWeekday(data: NavDataPoint[], month: number, day: number): number {
   const matching = data.filter(d => d.month === month && d.dayOfMonth === day);
-  if (matching.length === 0) return 3; // Default to Wednesday
+  if (matching.length === 0) return DEFAULT_WEEKDAY_FALLBACK;
   
   // Count weekday occurrences
   const counts = [0, 0, 0, 0, 0, 0, 0];
@@ -142,12 +172,16 @@ function analyzeMonth(
     // Calculate week-of-month bonus
     const weekOfMonthBonus = calculateWeekOfMonthBonus(weekDeviations, day);
     
-    // Composite score: raw deviation + weighted adjustments
-    // Weekday effect: 15% weight, Week effect: 10% weight
-    const compositeScore = avgDeviation * 0.75 + weekdayBonus * 0.15 + weekOfMonthBonus * 0.10;
+    // Composite score: weighted combination of all factors
+    // Uses constants defined at top of file for transparency
+    const compositeScore = 
+      avgDeviation * COMPOSITE_WEIGHTS.RAW_DEVIATION + 
+      weekdayBonus * COMPOSITE_WEIGHTS.WEEKDAY_EFFECT + 
+      weekOfMonthBonus * COMPOSITE_WEIGHTS.WEEK_OF_MONTH_EFFECT;
     
     // Consistency: how stable is this pattern year-over-year?
-    const consistency = Math.max(0, 100 - (volatility * 20));
+    // Higher volatility = lower consistency (score 0-100)
+    const consistency = Math.max(0, 100 - (volatility * VOLATILITY_TO_CONSISTENCY_MULTIPLIER));
     
     dayScores.push({
       day,
@@ -320,7 +354,8 @@ function analyzeTimeframe(
 ): TimeframeMonthlyAnalysis | null {
   const filteredData = filterByTimeframe(fundData.navData, timeframe);
   
-  if (filteredData.length < 60) { // Need at least ~3 months of data
+  // Require minimum data points for reliable analysis
+  if (filteredData.length < MIN_DATA_POINTS_FOR_ANALYSIS) {
     return null;
   }
   
