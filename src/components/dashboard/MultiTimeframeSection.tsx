@@ -47,15 +47,6 @@ export function MultiTimeframeSection({ multiAnalysis, selectedFund }: MultiTime
 
   return (
     <div className="space-y-6">
-      <div className="border-t border-border pt-6">
-        <h2 className="text-lg font-semibold mb-4">
-          📊 Multi-Timeframe Comparison — {fundName}
-        </h2>
-        <p className="text-sm text-muted-foreground mb-6">
-          Compare how patterns differ across 1, 3, 5, and 10 year periods. Consistent patterns across all timeframes 
-          indicate stronger, more reliable signals.
-        </p>
-      </div>
 
       {/* Consistency Table First */}
       <ConsistencyTable data={consistencyData} fundName={fundName} />

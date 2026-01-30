@@ -58,15 +58,6 @@ export function StrategySection({ multiAnalysis, selectedFund }: StrategySection
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Target className="h-6 w-6 text-primary" />
-        <div>
-          <h2 className="text-xl font-bold">Investment Strategy</h2>
-          <p className="text-sm text-muted-foreground">
-            Optimized recommendations for {fundName} based on multi-timeframe analysis
-          </p>
-        </div>
-      </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <TimeframeWeightsInput weights={weights} onChange={setWeights} />

@@ -59,17 +59,6 @@ export function MonthlyOptimalEntrySection({ analysis, fundName }: MonthlyOptima
 
   return (
     <div className="space-y-6">
-      <div className="border-t border-border pt-6">
-        <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
-          <CalendarDays className="h-5 w-5 text-primary" />
-          Monthly Optimal Entry Analysis — {fundName}
-        </h2>
-        <p className="text-sm text-muted-foreground mb-6">
-          Find the best SIP date for each month, analyzed across 1Y, 3Y, 5Y, and 10Y periods with 
-          weekday and week-of-month adjustments.
-        </p>
-      </div>
-
       {/* Global Insights */}
       <Card>
         <CardHeader className="pb-3">
