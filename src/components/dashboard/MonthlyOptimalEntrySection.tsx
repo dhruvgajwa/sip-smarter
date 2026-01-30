@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Info
 } from 'lucide-react';
+import { CopyableWrapper } from './CopyableWrapper';
 import type { CompleteMonthlyOptimalEntry, MonthConsensus } from '@/types/monthlyOptimalEntry';
 import { FULL_MONTH_NAMES } from '@/types/monthlyOptimalEntry';
 import { 
@@ -333,6 +334,20 @@ function CrossTimeframeComparison({ consensus }: { consensus: MonthConsensus[] }
     bestDay: c.consensusBestDay,
   }));
 
+  // Prepare copyable data for the summary table
+  const copyData = consensus.map(c => {
+    const row: Record<string, string | number> = {
+      Month: c.monthName,
+      'Best Day': c.consensusBestDayLabel,
+    };
+    c.timeframeRecommendations.forEach(rec => {
+      row[rec.timeframe] = rec.available ? rec.bestDayLabel : '—';
+    });
+    row['Agreement (%)'] = c.agreementScore;
+    row['Confidence'] = c.confidence;
+    return row;
+  });
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -342,93 +357,97 @@ function CrossTimeframeComparison({ consensus }: { consensus: MonthConsensus[] }
         </p>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={radarData} margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
-              <PolarGrid stroke="hsl(var(--border))" />
-              <PolarAngleAxis 
-                dataKey="month" 
-                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-              />
-              <PolarRadiusAxis 
-                angle={30} 
-                domain={[0, 100]} 
-                tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-              />
-              <Radar
-                name="Agreement %"
-                dataKey="agreement"
-                stroke="hsl(var(--primary))"
-                fill="hsl(var(--primary))"
-                fillOpacity={0.3}
-              />
-              <Tooltip
-                formatter={(value: number, name: string, props: any) => [
-                  `${value.toFixed(0)}%`,
-                  `${props.payload.fullMonth}: Best day is ${props.payload.bestDay}`,
-                ]}
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px',
-                }}
-              />
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
+        <CopyableWrapper data={radarData} label="Radar Chart Data" className="mb-4">
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData} margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+                <PolarGrid stroke="hsl(var(--border))" />
+                <PolarAngleAxis 
+                  dataKey="month" 
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <PolarRadiusAxis 
+                  angle={30} 
+                  domain={[0, 100]} 
+                  tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <Radar
+                  name="Agreement %"
+                  dataKey="agreement"
+                  stroke="hsl(var(--primary))"
+                  fill="hsl(var(--primary))"
+                  fillOpacity={0.3}
+                />
+                <Tooltip
+                  formatter={(value: number, name: string, props: any) => [
+                    `${value.toFixed(0)}%`,
+                    `${props.payload.fullMonth}: Best day is ${props.payload.bestDay}`,
+                  ]}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </CopyableWrapper>
 
         {/* Summary Table */}
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-2 font-medium text-muted-foreground">Month</th>
-                <th className="text-center py-2 font-medium text-muted-foreground">Best Day</th>
-                <th className="text-center py-2 font-medium text-muted-foreground">1Y</th>
-                <th className="text-center py-2 font-medium text-muted-foreground">3Y</th>
-                <th className="text-center py-2 font-medium text-muted-foreground">5Y</th>
-                <th className="text-center py-2 font-medium text-muted-foreground">10Y</th>
-                <th className="text-center py-2 font-medium text-muted-foreground">Agreement</th>
-              </tr>
-            </thead>
-            <tbody>
-              {consensus.map(c => (
-                <tr key={c.month} className="border-b border-border/50 hover:bg-muted/30">
-                  <td className="py-2 font-medium">{c.monthName}</td>
-                  <td className="py-2 text-center">
-                    <span className="font-bold text-primary">{c.consensusBestDayLabel}</span>
-                  </td>
-                  {c.timeframeRecommendations.map(rec => (
-                    <td 
-                      key={rec.timeframe} 
-                      className={`py-2 text-center ${
-                        rec.available && rec.bestDay === c.consensusBestDay 
-                          ? 'text-emerald-400' 
-                          : 'text-muted-foreground'
-                      }`}
-                    >
-                      {rec.available ? rec.bestDayLabel : '—'}
-                    </td>
-                  ))}
-                  <td className="py-2 text-center">
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs ${
-                        c.confidence === 'high' 
-                          ? 'border-emerald-500/50 text-emerald-400'
-                          : c.confidence === 'medium'
-                          ? 'border-amber-500/50 text-amber-400'
-                          : 'border-border text-muted-foreground'
-                      }`}
-                    >
-                      {c.agreementScore.toFixed(0)}%
-                    </Badge>
-                  </td>
+        <CopyableWrapper data={copyData} label="Monthly Summary">
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-2 font-medium text-muted-foreground">Month</th>
+                  <th className="text-center py-2 font-medium text-muted-foreground">Best Day</th>
+                  <th className="text-center py-2 font-medium text-muted-foreground">1Y</th>
+                  <th className="text-center py-2 font-medium text-muted-foreground">3Y</th>
+                  <th className="text-center py-2 font-medium text-muted-foreground">5Y</th>
+                  <th className="text-center py-2 font-medium text-muted-foreground">10Y</th>
+                  <th className="text-center py-2 font-medium text-muted-foreground">Agreement</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {consensus.map(c => (
+                  <tr key={c.month} className="border-b border-border/50 hover:bg-muted/30">
+                    <td className="py-2 font-medium">{c.monthName}</td>
+                    <td className="py-2 text-center">
+                      <span className="font-bold text-primary">{c.consensusBestDayLabel}</span>
+                    </td>
+                    {c.timeframeRecommendations.map(rec => (
+                      <td 
+                        key={rec.timeframe} 
+                        className={`py-2 text-center ${
+                          rec.available && rec.bestDay === c.consensusBestDay 
+                            ? 'text-emerald-400' 
+                            : 'text-muted-foreground'
+                        }`}
+                      >
+                        {rec.available ? rec.bestDayLabel : '—'}
+                      </td>
+                    ))}
+                    <td className="py-2 text-center">
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${
+                          c.confidence === 'high' 
+                            ? 'border-emerald-500/50 text-emerald-400'
+                            : c.confidence === 'medium'
+                            ? 'border-amber-500/50 text-amber-400'
+                            : 'border-border text-muted-foreground'
+                        }`}
+                      >
+                        {c.agreementScore.toFixed(0)}%
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CopyableWrapper>
       </CardContent>
     </Card>
   );

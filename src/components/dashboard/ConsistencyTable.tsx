@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, AlertCircle, HelpCircle } from 'lucide-react';
+import { CopyableWrapper } from './CopyableWrapper';
 import type { FactorConsistency } from '@/types/multiTimeframeAnalysis';
 import { TIMEFRAMES } from '@/types/mutualFund';
 
@@ -39,6 +40,19 @@ export function ConsistencyTable({ data, fundName }: ConsistencyTableProps) {
     );
   };
 
+  // Prepare copyable data
+  const copyData = data.map((row) => {
+    const rowData: Record<string, string | undefined> = {
+      Factor: row.factor,
+    };
+    TIMEFRAMES.forEach((tf) => {
+      rowData[tf.value] = row.bestByTimeframe[tf.value] || '—';
+    });
+    rowData['Consensus'] = row.consensusBest || '—';
+    rowData['Confidence'] = row.confidence;
+    return rowData;
+  });
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -52,59 +66,61 @@ export function ConsistencyTable({ data, fundName }: ConsistencyTableProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[140px]">Factor</TableHead>
-                {TIMEFRAMES.map(tf => (
-                  <TableHead key={tf.value} className="text-center min-w-[80px]">
-                    {tf.value}
-                  </TableHead>
-                ))}
-                <TableHead className="text-center">Consensus</TableHead>
-                <TableHead className="text-center">Confidence</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((row) => {
-                const allMatch = row.isConsistent;
-                return (
-                  <TableRow key={row.factor}>
-                    <TableCell className="font-medium">{row.factor}</TableCell>
-                    {TIMEFRAMES.map(tf => {
-                      const value = row.bestByTimeframe[tf.value];
-                      const isConsensus = value === row.consensusBest;
-                      return (
-                        <TableCell 
-                          key={tf.value} 
-                          className={`text-center text-sm ${
-                            !value 
-                              ? 'text-muted-foreground' 
-                              : isConsensus 
-                                ? 'font-medium text-green-600 dark:text-green-400' 
-                                : ''
-                          }`}
-                        >
-                          {value || '—'}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {getConfidenceIcon(row.confidence)}
-                        <span className="font-medium">{row.consensusBest || '—'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {getConfidenceBadge(row.confidence)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <CopyableWrapper data={copyData} label="Consistency Analysis">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[140px]">Factor</TableHead>
+                  {TIMEFRAMES.map(tf => (
+                    <TableHead key={tf.value} className="text-center min-w-[80px]">
+                      {tf.value}
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-center">Consensus</TableHead>
+                  <TableHead className="text-center">Confidence</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((row) => {
+                  const allMatch = row.isConsistent;
+                  return (
+                    <TableRow key={row.factor}>
+                      <TableCell className="font-medium">{row.factor}</TableCell>
+                      {TIMEFRAMES.map(tf => {
+                        const value = row.bestByTimeframe[tf.value];
+                        const isConsensus = value === row.consensusBest;
+                        return (
+                          <TableCell 
+                            key={tf.value} 
+                            className={`text-center text-sm ${
+                              !value 
+                                ? 'text-muted-foreground' 
+                                : isConsensus 
+                                  ? 'font-medium text-green-600 dark:text-green-400' 
+                                  : ''
+                            }`}
+                          >
+                            {value || '—'}
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {getConfidenceIcon(row.confidence)}
+                          <span className="font-medium">{row.consensusBest || '—'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {getConfidenceBadge(row.confidence)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CopyableWrapper>
       </CardContent>
     </Card>
   );
