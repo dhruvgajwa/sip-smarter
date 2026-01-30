@@ -1,5 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, CalendarDays, Clock, TrendingUp, BarChart3 } from 'lucide-react';
+import { CopyableWrapper } from './CopyableWrapper';
 import type { FundAnalysis } from '@/types/mutualFund';
 
 interface SummaryCardsProps {
@@ -60,24 +61,33 @@ export function SummaryCards({ analysis }: SummaryCardsProps) {
     },
   ];
 
+  // Prepare copyable data
+  const copyData = cards.map((c) => ({
+    Metric: c.label,
+    Value: c.value,
+    Detail: c.subtext,
+  }));
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-      {cards.map((card) => (
-        <Card key={card.label} className="overflow-hidden">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <card.icon className={`h-4 w-4 ${card.color}`} />
-              {card.label}
-            </div>
-            <div className={`text-2xl font-bold ${card.color}`}>
-              {card.value}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {card.subtext}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <CopyableWrapper data={copyData} label="Summary">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {cards.map((card) => (
+          <Card key={card.label} className="overflow-hidden">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                <card.icon className={`h-4 w-4 ${card.color}`} />
+                {card.label}
+              </div>
+              <div className={`text-2xl font-bold ${card.color}`}>
+                {card.value}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {card.subtext}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </CopyableWrapper>
   );
 }

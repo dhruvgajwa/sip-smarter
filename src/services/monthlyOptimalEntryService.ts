@@ -38,6 +38,58 @@ const MIN_DATA_POINTS_FOR_ANALYSIS = 60;
 // Moving average window for normalization (trading days)
 const MOVING_AVERAGE_WINDOW = 30;
 
+// nDCG configuration
+// Timeframe weights for nDCG calculation (longer = more reliable)
+const NDCG_TIMEFRAME_WEIGHTS: Record<Timeframe, number> = {
+  '1Y': 1.0,
+  '3Y': 1.5,
+  '5Y': 2.0,
+  '10Y': 2.5,
+};
+
+/**
+ * Calculate Discounted Cumulative Gain (DCG) for a ranking
+ * Uses logarithmic discount: relevance / log2(position + 1)
+ */
+function calculateDCG(relevanceScores: number[]): number {
+  return relevanceScores.reduce((dcg, rel, index) => {
+    const position = index + 1;
+    // Position discount using log base 2
+    const discount = Math.log2(position + 1);
+    return dcg + rel / discount;
+  }, 0);
+}
+
+/**
+ * Calculate Normalized DCG (nDCG)
+ * nDCG = DCG / IDCG where IDCG is the ideal (best possible) DCG
+ */
+function calculateNDCG(relevanceScores: number[]): number {
+  if (relevanceScores.length === 0) return 0;
+  
+  const dcg = calculateDCG(relevanceScores);
+  
+  // IDCG: DCG of the ideal ranking (sorted descending)
+  const idealScores = [...relevanceScores].sort((a, b) => b - a);
+  const idcg = calculateDCG(idealScores);
+  
+  if (idcg === 0) return 0;
+  return dcg / idcg;
+}
+
+/**
+ * Convert deviation to relevance score (for nDCG)
+ * Lower deviation = higher relevance (better for investing)
+ * Uses exponential decay to emphasize top performers
+ */
+function deviationToRelevance(deviation: number, minDev: number, maxDev: number): number {
+  if (maxDev === minDev) return 1;
+  // Normalize to 0-1 where 0 is worst (highest deviation), 1 is best (lowest)
+  const normalized = 1 - (deviation - minDev) / (maxDev - minDev);
+  // Apply exponential scaling to emphasize differences at the top
+  return Math.pow(normalized, 2) * 10; // Scale to 0-10 range
+}
+
 /**
  * Calculate moving average for normalization
  * Uses centered window for smoother results
@@ -378,7 +430,58 @@ function analyzeTimeframe(
 }
 
 /**
- * Generate cross-timeframe consensus for each month
+ * Calculate nDCG score for a day across all timeframes
+ * This aggregates how well a specific day ranks across different time periods
+ */
+function calculateDayNDCGScore(
+  day: number,
+  month: number,
+  timeframeAnalyses: Record<Timeframe, TimeframeMonthlyAnalysis | null>
+): { ndcgScore: number; weightedDeviation: number; timeframesPresent: number } {
+  const relevanceScores: number[] = [];
+  let totalWeightedDeviation = 0;
+  let totalWeight = 0;
+  let timeframesPresent = 0;
+  
+  TIMEFRAMES.forEach(({ value: tf }) => {
+    const analysis = timeframeAnalyses[tf];
+    const monthAnalysis = analysis?.months[month];
+    
+    if (!monthAnalysis || monthAnalysis.rankedDays.length === 0) return;
+    
+    const rankedDays = monthAnalysis.rankedDays;
+    const dayIndex = rankedDays.findIndex(d => d.day === day);
+    
+    if (dayIndex === -1) return; // Day not available in this timeframe
+    
+    timeframesPresent++;
+    const dayData = rankedDays[dayIndex];
+    const weight = NDCG_TIMEFRAME_WEIGHTS[tf];
+    
+    // Calculate relevance based on deviation
+    const deviations = rankedDays.map(d => d.compositeScore);
+    const minDev = Math.min(...deviations);
+    const maxDev = Math.max(...deviations);
+    const relevance = deviationToRelevance(dayData.compositeScore, minDev, maxDev);
+    
+    relevanceScores.push(relevance * weight);
+    totalWeightedDeviation += dayData.compositeScore * weight;
+    totalWeight += weight;
+  });
+  
+  if (relevanceScores.length === 0) {
+    return { ndcgScore: 0, weightedDeviation: Infinity, timeframesPresent: 0 };
+  }
+  
+  // Calculate nDCG from weighted relevance scores
+  const ndcgScore = calculateNDCG(relevanceScores);
+  const weightedDeviation = totalWeightedDeviation / totalWeight;
+  
+  return { ndcgScore, weightedDeviation, timeframesPresent };
+}
+
+/**
+ * Generate cross-timeframe consensus for each month using nDCG ranking
  */
 function generateMonthlyConsensus(
   timeframeAnalyses: Record<Timeframe, TimeframeMonthlyAnalysis | null>
@@ -388,7 +491,9 @@ function generateMonthlyConsensus(
   for (let month = 0; month < 12; month++) {
     const monthName = FULL_MONTH_NAMES[month];
     const timeframeRecommendations: MonthConsensus['timeframeRecommendations'] = [];
-    const dayVotes = new Map<number, { count: number; totalDeviation: number; ranks: number[] }>();
+    
+    // Collect all unique days across timeframes
+    const allDays = new Set<number>();
     
     // Collect recommendations from each timeframe
     TIMEFRAMES.forEach(({ value: tf }) => {
@@ -406,20 +511,8 @@ function generateMonthlyConsensus(
           available: true,
         });
         
-        // Track votes for consensus
-        const existing = dayVotes.get(bestDay.day) || { count: 0, totalDeviation: 0, ranks: [] };
-        existing.count++;
-        existing.totalDeviation += bestDay.avgDeviation;
-        existing.ranks.push(1);
-        dayVotes.set(bestDay.day, existing);
-        
-        // Also track top 3 alternatives
-        monthAnalysis.alternativeDays.forEach((alt, idx) => {
-          const altExisting = dayVotes.get(alt.day) || { count: 0, totalDeviation: 0, ranks: [] };
-          altExisting.totalDeviation += alt.avgDeviation;
-          altExisting.ranks.push(idx + 2);
-          dayVotes.set(alt.day, altExisting);
-        });
+        // Collect all days from this timeframe
+        monthAnalysis.rankedDays.forEach(d => allDays.add(d.day));
       } else {
         timeframeRecommendations.push({
           timeframe: tf,
@@ -431,44 +524,65 @@ function generateMonthlyConsensus(
       }
     });
     
-    // Find consensus best day (most votes, then lowest deviation)
-    let consensusBestDay = 1;
-    let maxVotes = 0;
-    let lowestDeviation = Infinity;
+    // Calculate nDCG score for each day
+    const dayNDCGScores: Array<{
+      day: number;
+      ndcgScore: number;
+      weightedDeviation: number;
+      timeframesPresent: number;
+    }> = [];
     
-    dayVotes.forEach((votes, day) => {
-      const avgDeviation = votes.totalDeviation / Math.max(votes.ranks.length, 1);
-      if (votes.count > maxVotes || (votes.count === maxVotes && avgDeviation < lowestDeviation)) {
-        maxVotes = votes.count;
-        lowestDeviation = avgDeviation;
-        consensusBestDay = day;
+    allDays.forEach(day => {
+      const scores = calculateDayNDCGScore(day, month, timeframeAnalyses);
+      if (scores.timeframesPresent > 0) {
+        dayNDCGScores.push({ day, ...scores });
       }
     });
     
-    // Calculate agreement score
+    // Sort by nDCG score (higher is better), then by weighted deviation (lower is better)
+    dayNDCGScores.sort((a, b) => {
+      // Primary: higher nDCG is better
+      if (Math.abs(a.ndcgScore - b.ndcgScore) > 0.01) {
+        return b.ndcgScore - a.ndcgScore;
+      }
+      // Secondary: lower deviation is better
+      return a.weightedDeviation - b.weightedDeviation;
+    });
+    
+    // Best day from nDCG ranking
+    const consensusBestDay = dayNDCGScores.length > 0 ? dayNDCGScores[0].day : 1;
+    const topNDCG = dayNDCGScores.length > 0 ? dayNDCGScores[0].ndcgScore : 0;
+    
+    // Calculate agreement score based on how many timeframes have this day in top 3
     const availableTimeframes = timeframeRecommendations.filter(t => t.available).length;
+    let agreementCount = 0;
+    
+    TIMEFRAMES.forEach(({ value: tf }) => {
+      const analysis = timeframeAnalyses[tf];
+      const monthAnalysis = analysis?.months[month];
+      if (!monthAnalysis) return;
+      
+      const top3Days = monthAnalysis.rankedDays.slice(0, 3).map(d => d.day);
+      if (top3Days.includes(consensusBestDay)) {
+        agreementCount++;
+      }
+    });
+    
     const agreementScore = availableTimeframes > 0 
-      ? (maxVotes / availableTimeframes) * 100 
+      ? (agreementCount / availableTimeframes) * 100 
       : 0;
     
-    // Find stable alternatives (days that consistently appear in top 5)
-    const stableAlternatives: MonthConsensus['stableAlternatives'] = [];
-    dayVotes.forEach((votes, day) => {
-      if (day === consensusBestDay) return;
-      
-      const timesInTop5 = votes.ranks.filter(r => r <= 5).length;
-      if (timesInTop5 >= 2) { // Appears in top 5 at least twice
-        stableAlternatives.push({
-          day,
-          dayLabel: formatOrdinal(day),
-          avgRank: votes.ranks.reduce((a, b) => a + b, 0) / votes.ranks.length,
-          timesInTop5,
-        });
-      }
-    });
-    
-    // Sort alternatives by average rank
-    stableAlternatives.sort((a, b) => a.avgRank - b.avgRank);
+    // Find stable alternatives using nDCG ranking
+    const stableAlternatives: MonthConsensus['stableAlternatives'] = dayNDCGScores
+      .slice(1, 6) // Take next 5 after the best
+      .filter(d => d.timeframesPresent >= 2) // Present in at least 2 timeframes
+      .map(d => ({
+        day: d.day,
+        dayLabel: formatOrdinal(d.day),
+        avgRank: 1 - d.ndcgScore, // Invert nDCG to approximate rank
+        timesInTop5: d.timeframesPresent,
+      }))
+      .slice(0, 3);
     
     // Generate summary
     const summary = generateConsensusSummary(
@@ -476,14 +590,15 @@ function generateMonthlyConsensus(
       consensusBestDay,
       agreementScore,
       timeframeRecommendations,
-      stableAlternatives
+      stableAlternatives,
+      topNDCG
     );
     
-    // Determine confidence
+    // Determine confidence based on nDCG score and agreement
     let confidence: 'high' | 'medium' | 'low' = 'low';
-    if (agreementScore >= 75 && availableTimeframes >= 3) {
+    if (topNDCG >= 0.7 && agreementScore >= 66 && availableTimeframes >= 3) {
       confidence = 'high';
-    } else if (agreementScore >= 50 && availableTimeframes >= 2) {
+    } else if (topNDCG >= 0.5 && agreementScore >= 50 && availableTimeframes >= 2) {
       confidence = 'medium';
     }
     
@@ -494,7 +609,7 @@ function generateMonthlyConsensus(
       consensusBestDayLabel: formatOrdinal(consensusBestDay),
       agreementScore,
       timeframeRecommendations,
-      stableAlternatives: stableAlternatives.slice(0, 3),
+      stableAlternatives,
       summary,
       confidence,
     });
@@ -511,7 +626,8 @@ function generateConsensusSummary(
   bestDay: number,
   agreementScore: number,
   recommendations: MonthConsensus['timeframeRecommendations'],
-  alternatives: MonthConsensus['stableAlternatives']
+  alternatives: MonthConsensus['stableAlternatives'],
+  ndcgScore: number = 0
 ): string {
   const available = recommendations.filter(r => r.available);
   const agreeing = recommendations.filter(r => r.available && r.bestDay === bestDay);
@@ -520,11 +636,13 @@ function generateConsensusSummary(
     return `Insufficient data for ${monthName}`;
   }
   
-  if (agreementScore >= 75) {
-    return `Strong consensus: ${formatOrdinal(bestDay)} is optimal for ${monthName} (${agreeing.length}/${available.length} timeframes agree)`;
-  } else if (agreementScore >= 50) {
+  const ndcgText = ndcgScore >= 0.7 ? ' (strong nDCG ranking)' : ndcgScore >= 0.5 ? ' (moderate nDCG ranking)' : '';
+  
+  if (agreementScore >= 66 && ndcgScore >= 0.6) {
+    return `Strong consensus: ${formatOrdinal(bestDay)} is optimal for ${monthName} (${agreeing.length}/${available.length} timeframes agree)${ndcgText}`;
+  } else if (agreementScore >= 50 || ndcgScore >= 0.5) {
     const altDays = alternatives.slice(0, 2).map(a => a.dayLabel).join(' or ');
-    return `Moderate consensus for ${formatOrdinal(bestDay)} in ${monthName}; ${altDays} also viable`;
+    return `Moderate consensus for ${formatOrdinal(bestDay)} in ${monthName}; ${altDays} also viable${ndcgText}`;
   } else {
     const uniqueDays = [...new Set(available.map(r => r.bestDay))];
     return `Mixed signals for ${monthName}: best days vary by timeframe (${uniqueDays.map(d => formatOrdinal(d)).join(', ')})`;
