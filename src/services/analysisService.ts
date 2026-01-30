@@ -2,6 +2,35 @@ import type { NavDataPoint, FundData, FundAnalysis, AnalysisBucket, Timeframe, T
 import { filterByTimeframe, calculateVolatility, formatOrdinal } from './dateUtils';
 import { WEEKDAY_LABELS, MONTH_LABELS, QUARTER_LABELS } from '@/types/mutualFund';
 
+/**
+ * ANALYSIS CONFIGURATION CONSTANTS
+ * These control the weighting and thresholds used in calculations.
+ * All values are derived from statistical best practices.
+ */
+
+// Moving average window for NAV normalization (in trading days)
+// 30 days ≈ 6 weeks of market data, smooths out short-term noise
+const MOVING_AVERAGE_WINDOW = 30;
+
+// Significance thresholds for determining data reliability
+const SIGNIFICANCE_THRESHOLDS = {
+  MIN_SAMPLES_FOR_ANY_SIGNIFICANCE: 10,  // Minimum samples to consider at all
+  MIN_SAMPLES_FOR_MEDIUM: 15,            // Samples needed for 'medium' significance
+  MIN_SAMPLES_FOR_HIGH: 20,              // Samples needed for 'high' significance
+  MAX_VOLATILITY_FOR_HIGH: 1.0,          // Maximum volatility (%) for 'high' significance
+} as const;
+
+// Factor weights for comprehensive recommendation
+// Higher weight = more actionable for SIP timing decisions
+// Sum must equal 1.0
+const RECOMMENDATION_WEIGHTS = {
+  DAY_OF_MONTH: 0.30,    // Most actionable - you can set SIP on specific day
+  WEEK_OF_MONTH: 0.25,   // Somewhat actionable
+  WEEKDAY: 0.20,         // Limited actionability (depends on when day falls)
+  MONTH: 0.15,           // Low actionability for regular SIP
+  QUARTER: 0.10,         // Lowest actionability
+} as const;
+
 interface BucketAccumulator {
   deviations: number[]; // Percentage deviations from period average
   key: string | number;
@@ -23,9 +52,10 @@ interface BucketAccumulator {
  */
 
 /**
- * Calculate 30-day moving average for normalization
+ * Calculate moving average for NAV normalization
+ * Uses centered window for smoother results
  */
-function calculateMovingAverages(data: NavDataPoint[], window: number = 30): Map<string, number> {
+function calculateMovingAverages(data: NavDataPoint[], window: number = MOVING_AVERAGE_WINDOW): Map<string, number> {
   const avgMap = new Map<string, number>();
   
   for (let i = 0; i < data.length; i++) {
@@ -105,13 +135,16 @@ function analyzeByFactor(
     // vsBest shows how much worse this is compared to the best option
     bucket.vsBest = bucket.avgDeviation - bestDeviation;
     
-    // Calculate statistical significance based on sample size and consistency
-    const minSamples = 10;
-    if (bucket.samples < minSamples) {
+    // Calculate statistical significance based on sample size and volatility
+    // Uses thresholds defined at top of file for transparency
+    if (bucket.samples < SIGNIFICANCE_THRESHOLDS.MIN_SAMPLES_FOR_ANY_SIGNIFICANCE) {
       bucket.significance = 'low';
-    } else if (bucket.volatility < 1 && bucket.samples >= 20) {
+    } else if (
+      bucket.volatility < SIGNIFICANCE_THRESHOLDS.MAX_VOLATILITY_FOR_HIGH && 
+      bucket.samples >= SIGNIFICANCE_THRESHOLDS.MIN_SAMPLES_FOR_HIGH
+    ) {
       bucket.significance = 'high';
-    } else if (bucket.samples >= 15) {
+    } else if (bucket.samples >= SIGNIFICANCE_THRESHOLDS.MIN_SAMPLES_FOR_MEDIUM) {
       bucket.significance = 'medium';
     } else {
       bucket.significance = 'low';
@@ -144,7 +177,7 @@ export function analyzeFund(
   onProgress?.(`Processing ${filteredData.length} data points with normalized deviation analysis...`);
   
   // Calculate moving averages for normalization
-  const movingAvgMap = calculateMovingAverages(filteredData, 30);
+  const movingAvgMap = calculateMovingAverages(filteredData, MOVING_AVERAGE_WINDOW);
   
   // Analyze by day of month (1-31)
   const dayOfMonth = analyzeByFactor(
@@ -280,13 +313,12 @@ export function generateComprehensiveRecommendation(analysis: FundAnalysis): Com
     });
   };
   
-  // Add signals for each factor with appropriate weights
-  // Day of month has highest weight (most actionable for SIP timing)
-  addSignal('Day of Month', analysis.bestDay, analysis.worstDay, analysis.dayOfMonth, 0.30);
-  addSignal('Week of Month', analysis.bestWeek, analysis.worstWeek, analysis.weekOfMonth, 0.25);
-  addSignal('Weekday', analysis.bestWeekday, analysis.worstWeekday, analysis.dayOfWeek, 0.20);
-  addSignal('Month', analysis.bestMonth, analysis.worstMonth, analysis.monthOfYear, 0.15);
-  addSignal('Quarter', analysis.bestQuarter, analysis.worstQuarter, analysis.quarterOfYear, 0.10);
+  // Add signals for each factor using weights defined at top of file
+  addSignal('Day of Month', analysis.bestDay, analysis.worstDay, analysis.dayOfMonth, RECOMMENDATION_WEIGHTS.DAY_OF_MONTH);
+  addSignal('Week of Month', analysis.bestWeek, analysis.worstWeek, analysis.weekOfMonth, RECOMMENDATION_WEIGHTS.WEEK_OF_MONTH);
+  addSignal('Weekday', analysis.bestWeekday, analysis.worstWeekday, analysis.dayOfWeek, RECOMMENDATION_WEIGHTS.WEEKDAY);
+  addSignal('Month', analysis.bestMonth, analysis.worstMonth, analysis.monthOfYear, RECOMMENDATION_WEIGHTS.MONTH);
+  addSignal('Quarter', analysis.bestQuarter, analysis.worstQuarter, analysis.quarterOfYear, RECOMMENDATION_WEIGHTS.QUARTER);
   
   // Calculate composite score
   const weightedAdvantage = signals.reduce((sum, s) => sum + (s.advantage * s.weight), 0);

@@ -5,6 +5,33 @@ import { MONTH_LABELS, TIMEFRAMES } from '@/types/mutualFund';
 import { formatOrdinal } from './dateUtils';
 
 /**
+ * STRATEGY ANALYSIS CONSTANTS
+ * These thresholds control when patterns are considered significant enough
+ * to warrant deviation from a standard linear SIP strategy.
+ */
+
+// Consensus thresholds for optimal entry recommendations
+const CONSENSUS_THRESHOLDS = {
+  HIGH_CONSENSUS: 75,      // % of timeframes that must agree for high confidence
+  TOP_RANK_CUTOFF: 10,     // Day must rank in top N to count toward consensus
+  SAVINGS_THRESHOLD: 0.05, // Minimum % difference to recommend optimal vs worst day
+} as const;
+
+// Distribution strategy thresholds
+const DISTRIBUTION_THRESHOLDS = {
+  MIN_RANGE_FOR_WEIGHTED: 0.03,    // Minimum deviation range to consider weighted strategy
+  MIN_IMPACT_THRESHOLD: 0.01,      // Below this, always recommend linear
+  WEIGHT_FLOOR: 0.7,               // Minimum weight multiplier (70% of equal)
+  WEIGHT_RANGE: 0.6,               // Range of weight adjustment (70% to 130%)
+  CONSISTENCY_BOOST: 1.15,         // Multiplier for consistently cheap months
+  CONSISTENCY_DAMPEN: 0.9,         // Multiplier for inconsistent patterns
+  MIN_CHEAP_DEVIATION: -0.02,      // Threshold for "cheap" month classification
+  MIN_EXPENSIVE_DEVIATION: 0.02,   // Threshold for "expensive" month classification
+  WEIGHTED_IMPROVEMENT_THRESHOLD: 0.025, // Min improvement for weighted recommendation
+  HYBRID_IMPROVEMENT_THRESHOLD: 0.01,    // Min improvement for hybrid recommendation
+} as const;
+
+/**
  * Calculate optimal entry points by synthesizing all timeframe data
  */
 export function calculateOptimalEntry(
@@ -68,8 +95,8 @@ export function calculateOptimalEntry(
       const score = entry.timeframeScores[tf];
       if (score.available) {
         deviations.push(score.avgDeviation);
-        // Count how many timeframes rank this day in top 10
-        if (score.rank <= 10) topRankCount++;
+        // Count how many timeframes rank this day in top N (defined by constant)
+        if (score.rank <= CONSENSUS_THRESHOLDS.TOP_RANK_CUTOFF) topRankCount++;
       }
     });
     
@@ -116,12 +143,12 @@ export function calculateOptimalEntry(
       `The ${primary.dayLabel} shows the most consistent negative deviation across ${availableTimeframes.length} timeframes, averaging ${primary.avgDeviationAcrossTimeframes.toFixed(3)}% below the moving average.`
     );
     
-    if (primary.consensusScore >= 75) {
-      reasoning.push(`High consensus (${primary.consensusScore.toFixed(0)}%): This day ranks in the top 10 across most timeframes.`);
+    if (primary.consensusScore >= CONSENSUS_THRESHOLDS.HIGH_CONSENSUS) {
+      reasoning.push(`High consensus (${primary.consensusScore.toFixed(0)}%): This day ranks in the top ${CONSENSUS_THRESHOLDS.TOP_RANK_CUTOFF} across most timeframes.`);
     }
     
     const maxSavings = worstDeviation - bestDeviation;
-    if (maxSavings > 0.05) {
+    if (maxSavings > CONSENSUS_THRESHOLDS.SAVINGS_THRESHOLD) {
       reasoning.push(`Choosing the optimal day over the worst could save approximately ${maxSavings.toFixed(3)}% per transaction.`);
     } else {
       reasoning.push(`The difference between best and worst days is minimal (${maxSavings.toFixed(3)}%), suggesting timing has limited impact for this fund.`);
@@ -287,10 +314,10 @@ export function calculateDistributionStrategy(
   const maxDev = Math.max(...allDeviations);
   const range = maxDev - minDev;
   
-  // More conservative threshold for recommending weighted distribution
-  const shouldUseWeighted = range > 0.03 && hasLongTermData;
+  // Use constants for thresholds - range must exceed MIN_RANGE_FOR_WEIGHTED
+  const shouldUseWeighted = range > DISTRIBUTION_THRESHOLDS.MIN_RANGE_FOR_WEIGHTED && hasLongTermData;
   
-  if (!shouldUseWeighted || range < 0.01) {
+  if (!shouldUseWeighted || range < DISTRIBUTION_THRESHOLDS.MIN_IMPACT_THRESHOLD) {
     monthlyData.forEach(m => {
       m.recommendedWeight = linearAllocation;
       m.vsEqualWeight = 0;
@@ -304,16 +331,16 @@ export function calculateDistributionStrategy(
       const normalized = 1 - (m.avgDeviation - minDev) / range;
       
       // If month is consistently cheap in long-term data, amplify slightly
-      // If NOT consistent, dampen the effect
+      // If NOT consistent, dampen the effect - uses constants for transparency
       let adjustmentFactor = 1.0;
       if (consistency.longTermConsistent && m.avgDeviation < 0) {
-        adjustmentFactor = 1.15; // Slight boost for consistent patterns
+        adjustmentFactor = DISTRIBUTION_THRESHOLDS.CONSISTENCY_BOOST;
       } else if (!consistency.longTermConsistent && m.avgDeviation < 0) {
-        adjustmentFactor = 0.9; // Reduce weight if pattern isn't consistent
+        adjustmentFactor = DISTRIBUTION_THRESHOLDS.CONSISTENCY_DAMPEN;
       }
       
-      // More conservative range: 0.7x to 1.3x of equal weight
-      return linearAllocation * (0.7 + normalized * 0.6) * adjustmentFactor;
+      // Weight range defined by constants (WEIGHT_FLOOR to WEIGHT_FLOOR + WEIGHT_RANGE)
+      return linearAllocation * (DISTRIBUTION_THRESHOLDS.WEIGHT_FLOOR + normalized * DISTRIBUTION_THRESHOLDS.WEIGHT_RANGE) * adjustmentFactor;
     });
     
     // Normalize to sum to 1
@@ -340,22 +367,28 @@ export function calculateDistributionStrategy(
   } else if (!has10YData) {
     reasoning.push(`Note: 10Y data not available. Recommendations based on 3Y-5Y patterns.`);
   } else {
-    reasoning.push(`Analysis weighted by timeframe: 10Y (40%), 5Y (30%), 3Y (20%), 1Y (10%) for statistical reliability.`);
+    // Show actual weights being used
+    const weightDesc = Object.entries(weights)
+      .filter(([_, w]) => w > 0)
+      .sort(([, a], [, b]) => b - a)
+      .map(([tf, w]) => `${tf} (${(w * 100).toFixed(0)}%)`)
+      .join(', ');
+    reasoning.push(`Analysis weighted by timeframe: ${weightDesc} for statistical reliability.`);
   }
   
-  // Check for consistent patterns
+  // Check for consistent patterns using thresholds defined at top of file
   const consistentCheapMonths = monthlyData.filter((m, i) => 
-    consistencyCheck[i].longTermConsistent && m.avgDeviation < -0.02
+    consistencyCheck[i].longTermConsistent && m.avgDeviation < DISTRIBUTION_THRESHOLDS.MIN_CHEAP_DEVIATION
   );
   const consistentExpensiveMonths = monthlyData.filter((m, i) => 
-    consistencyCheck[i].longTermConsistent && m.avgDeviation > 0.02
+    consistencyCheck[i].longTermConsistent && m.avgDeviation > DISTRIBUTION_THRESHOLDS.MIN_EXPENSIVE_DEVIATION
   );
   
-  if (hasLongTermData && potentialImprovement > 0.025 && consistentCheapMonths.length >= 2) {
+  if (hasLongTermData && potentialImprovement > DISTRIBUTION_THRESHOLDS.WEIGHTED_IMPROVEMENT_THRESHOLD && consistentCheapMonths.length >= 2) {
     recommendation = 'weighted';
     reasoning.push(`Weighted distribution recommended: ${consistentCheapMonths.length} months show consistent negative deviation across long-term data.`);
     reasoning.push(`Invest more in: ${consistentCheapMonths.map(m => m.monthLabel).join(', ')}.`);
-  } else if (hasLongTermData && potentialImprovement > 0.01 && consistentCheapMonths.length >= 1) {
+  } else if (hasLongTermData && potentialImprovement > DISTRIBUTION_THRESHOLDS.HYBRID_IMPROVEMENT_THRESHOLD && consistentCheapMonths.length >= 1) {
     recommendation = 'hybrid';
     reasoning.push(`Consider occasional top-ups in ${consistentCheapMonths.map(m => m.monthLabel).join(', ')} - these show consistent patterns.`);
     reasoning.push(`Overall improvement potential is modest (${(potentialImprovement * 100).toFixed(2)}%), so stick with regular SIP as base.`);
@@ -368,20 +401,19 @@ export function calculateDistributionStrategy(
   }
   
   // Add insight about best/worst months if patterns exist
-  if (hasLongTermData && range > 0.03) {
+  if (hasLongTermData && range > DISTRIBUTION_THRESHOLDS.MIN_RANGE_FOR_WEIGHTED) {
     const cheapestMonth = [...monthlyData].sort((a, b) => a.avgDeviation - b.avgDeviation)[0];
     const expensiveMonth = [...monthlyData].sort((a, b) => b.avgDeviation - a.avgDeviation)[0];
     reasoning.push(`Historical pattern: ${cheapestMonth.monthLabel} tends to be cheapest (${cheapestMonth.avgDeviation.toFixed(3)}%), ${expensiveMonth.monthLabel} most expensive (${expensiveMonth.avgDeviation > 0 ? '+' : ''}${expensiveMonth.avgDeviation.toFixed(3)}%).`);
   }
   
-  // Generate practical allocation
-  const baseAmount = 10000;
+  // Generate practical allocation - amounts are calculated in UI component
+  // based on user's baseAmount input, not hardcoded here
   const practicalAllocation = monthlyData.map(m => ({
     month: m.monthLabel,
     percentage: m.recommendedWeight * 100,
-    amount: recommendation === 'linear' 
-      ? `₹${baseAmount.toLocaleString('en-IN')}`
-      : `₹${Math.round(m.recommendedWeight * 12 * baseAmount).toLocaleString('en-IN')}`,
+    // Amount is a percentage string - actual rupee amounts calculated in UI
+    amount: `${(m.recommendedWeight * 100).toFixed(1)}%`,
   }));
   
   return {

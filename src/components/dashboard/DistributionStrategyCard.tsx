@@ -51,12 +51,13 @@ export function DistributionStrategyCard({ strategy, baseAmount = 10000 }: Distr
     { years: 10, linear: yearlyAmount * 10, weighted: yearlyAmount * 10, benefit: yearlyBenefitAmount * 10 },
   ];
 
-  // Chart data
+  // Chart data - use actual linear allocation from strategy, not hardcoded
+  const equalWeightPercent = strategy.linearAllocation * 100;
   const chartData = monthlyAllocations.map(m => ({
     month: m.monthLabel.slice(0, 3),
     deviation: m.avgDeviation,
     weight: m.recommendedWeight * 100,
-    equalWeight: 8.33,
+    equalWeight: equalWeightPercent,
   }));
 
   const recommendationColors = {
