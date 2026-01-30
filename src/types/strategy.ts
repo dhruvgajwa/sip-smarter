@@ -1,6 +1,11 @@
 import type { Timeframe } from './mutualFund';
 
 /**
+ * Timeframe weights for strategy calculation
+ */
+export type TimeframeWeights = Record<Timeframe, number>;
+
+/**
  * Optimal entry point recommendation with multi-timeframe consensus
  */
 export interface OptimalEntryPoint {
