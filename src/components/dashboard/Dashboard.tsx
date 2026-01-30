@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { useConsoleLog } from '@/hooks/useConsoleLog';
 import { useMutualFundAnalysis } from '@/hooks/useMutualFundAnalysis';
 import { useMultiTimeframeAnalysis } from '@/hooks/useMultiTimeframeAnalysis';
+import { useMonthlyOptimalEntry } from '@/hooks/useMonthlyOptimalEntry';
 import { FUNDS } from '@/types/mutualFund';
 import { filterByTimeframe } from '@/services/dateUtils';
 
@@ -23,6 +24,7 @@ import { QuarterAnalysisChart } from './QuarterAnalysisChart';
 import { AnalysisTable } from './AnalysisTable';
 import { MultiTimeframeSection } from './MultiTimeframeSection';
 import { StrategySection } from './StrategySection';
+import { MonthlyOptimalEntrySection } from './MonthlyOptimalEntrySection';
 
 export function Dashboard() {
   const { logs, log, clear } = useConsoleLog();
@@ -38,6 +40,9 @@ export function Dashboard() {
 
   // Multi-timeframe analysis for comparison charts
   const multiAnalysis = useMultiTimeframeAnalysis(fundsData, log);
+  
+  // Monthly optimal entry analysis (comprehensive month-by-month)
+  const monthlyOptimalEntry = useMonthlyOptimalEntry(fundsData, log);
 
   const [selectedFund, setSelectedFund] = useState<number | 'all'>('all');
 
@@ -61,6 +66,11 @@ export function Dashboard() {
   const currentFundName = selectedFund === 'all' 
     ? 'All Funds (showing first)'
     : FUNDS.find(f => f.code === selectedFund)?.shortName || '';
+
+  // Get monthly optimal entry for selected fund
+  const currentMonthlyEntry = selectedFund === 'all'
+    ? (monthlyOptimalEntry.size > 0 ? monthlyOptimalEntry.values().next().value : null)
+    : monthlyOptimalEntry.get(selectedFund) || null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -149,6 +159,12 @@ export function Dashboard() {
           <StrategySection 
             multiAnalysis={multiAnalysis} 
             selectedFund={selectedFund} 
+          />
+
+          {/* Monthly Optimal Entry Section (NEW - comprehensive month-by-month) */}
+          <MonthlyOptimalEntrySection 
+            analysis={currentMonthlyEntry}
+            fundName={currentFundName}
           />
 
           {/* Multi-Timeframe Comparison Section */}
