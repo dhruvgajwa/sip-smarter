@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PieChart, Scale, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
+import { Scale, ArrowRight, CheckCircle2, XCircle, TrendingUp, Calculator } from 'lucide-react';
 import type { DistributionStrategy } from '@/types/strategy';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 
@@ -11,6 +11,7 @@ interface DistributionStrategyCardProps {
 
 export function DistributionStrategyCard({ strategy, baseAmount = 10000 }: DistributionStrategyCardProps) {
   const yearlyAmount = baseAmount * 12;
+  
   if (!strategy) {
     return (
       <Card>
@@ -33,10 +34,22 @@ export function DistributionStrategyCard({ strategy, baseAmount = 10000 }: Distr
   const practicalAllocation = monthlyAllocations.map(m => ({
     month: m.monthLabel,
     percentage: m.recommendedWeight * 100,
-    amount: recommendation === 'linear' 
-      ? `₹${baseAmount.toLocaleString('en-IN')}`
-      : `₹${Math.round(m.recommendedWeight * 12 * baseAmount).toLocaleString('en-IN')}`,
+    linearAmount: baseAmount,
+    weightedAmount: Math.round(m.recommendedWeight * 12 * baseAmount),
+    difference: Math.round(m.recommendedWeight * 12 * baseAmount) - baseAmount,
   }));
+
+  // Calculate detailed benefit analysis
+  const improvementPercentage = linearVsWeighted.potentialImprovement;
+  const yearlyBenefitAmount = Math.round(Math.abs(improvementPercentage) * yearlyAmount / 100);
+  
+  // Project benefits over multiple years (compound effect approximation)
+  const projections = [
+    { years: 1, linear: yearlyAmount, weighted: yearlyAmount, benefit: yearlyBenefitAmount },
+    { years: 3, linear: yearlyAmount * 3, weighted: yearlyAmount * 3, benefit: yearlyBenefitAmount * 3 },
+    { years: 5, linear: yearlyAmount * 5, weighted: yearlyAmount * 5, benefit: yearlyBenefitAmount * 5 },
+    { years: 10, linear: yearlyAmount * 10, weighted: yearlyAmount * 10, benefit: yearlyBenefitAmount * 10 },
+  ];
 
   // Chart data
   const chartData = monthlyAllocations.map(m => ({
@@ -71,7 +84,7 @@ export function DistributionStrategyCard({ strategy, baseAmount = 10000 }: Distr
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          Should you invest equally each month or follow a weighted pattern?
+          Comparing constant ₹{baseAmount.toLocaleString('en-IN')}/month vs weighted allocation
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -84,12 +97,12 @@ export function DistributionStrategyCard({ strategy, baseAmount = 10000 }: Distr
               ) : (
                 <XCircle className="h-5 w-5 text-muted-foreground" />
               )}
-              <span className="font-medium">Linear SIP</span>
+              <span className="font-medium">Constant SIP</span>
             </div>
-            <p className="text-2xl font-bold">8.33%</p>
+            <p className="text-2xl font-bold font-mono">₹{baseAmount.toLocaleString('en-IN')}</p>
             <p className="text-xs text-muted-foreground">Same amount every month</p>
             <p className="text-sm mt-2">
-              Expected deviation: <span className="font-mono">{linearVsWeighted.linearExpectedDeviation.toFixed(4)}%</span>
+              Yearly: <span className="font-mono">₹{yearlyAmount.toLocaleString('en-IN')}</span>
             </p>
           </div>
           
@@ -100,31 +113,70 @@ export function DistributionStrategyCard({ strategy, baseAmount = 10000 }: Distr
               ) : (
                 <XCircle className="h-5 w-5 text-muted-foreground" />
               )}
-              <span className="font-medium">Weighted</span>
+              <span className="font-medium">Weighted SIP</span>
             </div>
-            <p className="text-2xl font-bold">Variable</p>
-            <p className="text-xs text-muted-foreground">Based on historical patterns</p>
+            <p className="text-2xl font-bold font-mono">Variable</p>
+            <p className="text-xs text-muted-foreground">₹{Math.min(...practicalAllocation.map(p => p.weightedAmount)).toLocaleString('en-IN')} - ₹{Math.max(...practicalAllocation.map(p => p.weightedAmount)).toLocaleString('en-IN')}</p>
             <p className="text-sm mt-2">
-              Expected deviation: <span className="font-mono">{linearVsWeighted.weightedExpectedDeviation.toFixed(4)}%</span>
+              Yearly: <span className="font-mono">₹{yearlyAmount.toLocaleString('en-IN')}</span>
             </p>
           </div>
         </div>
 
-        {/* Potential Improvement */}
-        <div className="bg-muted/30 rounded-lg p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">Potential Improvement with Weighted</p>
-            <p className={`text-2xl font-bold ${linearVsWeighted.potentialImprovement > 0.01 ? 'text-emerald-400' : 'text-muted-foreground'}`}>
-              {linearVsWeighted.potentialImprovement > 0 ? '+' : ''}{linearVsWeighted.potentialImprovement.toFixed(4)}%
-            </p>
+        {/* Benefit Calculator */}
+        <div className="bg-gradient-to-r from-emerald-500/10 to-primary/10 rounded-lg p-4 border border-emerald-500/20">
+          <div className="flex items-center gap-2 mb-3">
+            <Calculator className="h-5 w-5 text-emerald-400" />
+            <span className="font-medium">Your Potential Benefit</span>
           </div>
-          <ArrowRight className="h-6 w-6 text-muted-foreground" />
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">Over ₹{yearlyAmount.toLocaleString('en-IN')}/year</p>
-            <p className="text-xl font-bold">
-              ₹{Math.round(Math.abs(linearVsWeighted.potentialImprovement) * yearlyAmount / 100).toLocaleString('en-IN')}
-            </p>
+          
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Improvement %</p>
+              <p className={`text-3xl font-bold ${improvementPercentage > 0.01 ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                {improvementPercentage > 0 ? '+' : ''}{improvementPercentage.toFixed(3)}%
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">per transaction on average</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Yearly Benefit</p>
+              <p className={`text-3xl font-bold ${yearlyBenefitAmount > 100 ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                ₹{yearlyBenefitAmount.toLocaleString('en-IN')}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">on ₹{yearlyAmount.toLocaleString('en-IN')}/year</p>
+            </div>
           </div>
+
+          {/* Multi-year projection */}
+          <div className="border-t border-border/50 pt-3">
+            <p className="text-xs font-medium mb-2 flex items-center gap-1">
+              <TrendingUp className="h-3 w-3" />
+              Projected Savings Over Time
+            </p>
+            <div className="grid grid-cols-4 gap-2 text-center">
+              {projections.map((proj) => (
+                <div key={proj.years} className="bg-background/50 rounded p-2">
+                  <p className="text-xs text-muted-foreground">{proj.years}Y</p>
+                  <p className="font-mono font-bold text-emerald-400 text-sm">
+                    ₹{proj.benefit.toLocaleString('en-IN')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Reality Check */}
+        <div className="bg-muted/30 rounded-lg p-3 border border-border">
+          <p className="text-xs font-medium mb-1">⚠️ Reality Check</p>
+          <p className="text-xs text-muted-foreground">
+            {yearlyBenefitAmount < 500 
+              ? `The benefit of ₹${yearlyBenefitAmount.toLocaleString('en-IN')}/year is marginal. The complexity of variable allocation may not be worth it. Stick with regular SIP.`
+              : yearlyBenefitAmount < 2000
+              ? `Modest benefit of ₹${yearlyBenefitAmount.toLocaleString('en-IN')}/year. Consider if the extra effort of variable allocation is worth it for you.`
+              : `Meaningful benefit of ₹${yearlyBenefitAmount.toLocaleString('en-IN')}/year. Variable allocation could be worthwhile if you can maintain discipline.`
+            }
+          </p>
         </div>
 
         {/* Monthly Deviation Chart */}
@@ -170,16 +222,22 @@ export function DistributionStrategyCard({ strategy, baseAmount = 10000 }: Distr
         {/* Practical Allocation Table */}
         {recommendation !== 'linear' && (
           <div>
-            <p className="text-sm font-medium mb-2">Suggested Monthly Allocation (₹{baseAmount.toLocaleString('en-IN')} base)</p>
+            <p className="text-sm font-medium mb-2">Monthly Breakdown: Constant vs Weighted</p>
             <div className="grid grid-cols-4 gap-2 text-xs">
               {practicalAllocation.map((alloc) => (
                 <div key={alloc.month} className="bg-muted/30 rounded p-2 text-center">
                   <p className="font-medium">{alloc.month.slice(0, 3)}</p>
-                  <p className="text-muted-foreground">{alloc.percentage.toFixed(1)}%</p>
-                  <p className="font-mono text-primary">{alloc.amount}</p>
+                  <p className="text-muted-foreground line-through">₹{alloc.linearAmount.toLocaleString('en-IN')}</p>
+                  <p className="font-mono text-primary">₹{alloc.weightedAmount.toLocaleString('en-IN')}</p>
+                  <p className={`text-xs ${alloc.difference > 0 ? 'text-emerald-400' : alloc.difference < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                    {alloc.difference > 0 ? '+' : ''}{alloc.difference.toLocaleString('en-IN')}
+                  </p>
                 </div>
               ))}
             </div>
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Total yearly investment remains the same: ₹{yearlyAmount.toLocaleString('en-IN')}
+            </p>
           </div>
         )}
 
