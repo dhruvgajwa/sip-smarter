@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Lightbulb, TrendingDown, AlertTriangle, CheckCircle2, Info, Target, Calendar, Clock, BarChart3 } from 'lucide-react';
+import { CopyableWrapper } from './CopyableWrapper';
 import type { FundAnalysis, ComprehensiveRecommendation, TimingSignal } from '@/types/mutualFund';
 import { generateComprehensiveRecommendation } from '@/services/analysisService';
 import { format } from 'date-fns';
@@ -73,6 +74,23 @@ export function RecommendationCard({ analysis }: RecommendationCardProps) {
 
   const recommendation = generateComprehensiveRecommendation(analysis);
 
+  // Prepare copyable summary
+  const copyData = {
+    primaryRecommendation: recommendation.primaryRecommendation,
+    estimatedAdvantage: `${recommendation.estimatedAdvantage.toFixed(3)}%`,
+    overallConfidence: recommendation.overallConfidence,
+    secondaryRecommendations: recommendation.secondaryRecommendations,
+    signals: recommendation.signals.map(s => ({
+      factor: s.factor,
+      best: s.bestOption,
+      worst: s.worstOption,
+      advantage: `${s.advantage.toFixed(3)}%`,
+      confidence: s.confidence,
+      topThree: s.topThree,
+    })),
+    caveats: recommendation.caveats,
+  };
+
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
@@ -94,6 +112,7 @@ export function RecommendationCard({ analysis }: RecommendationCardProps) {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
+        <CopyableWrapper data={copyData} label="Recommendations">
         {/* Primary Recommendation */}
         <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
           <div className="flex items-start gap-3">
@@ -185,6 +204,7 @@ export function RecommendationCard({ analysis }: RecommendationCardProps) {
             </div>
           </details>
         </div>
+        </CopyableWrapper>
       </CardContent>
     </Card>
   );

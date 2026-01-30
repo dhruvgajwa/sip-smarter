@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { CopyableWrapper } from './CopyableWrapper';
 import type { FundAnalysis, AnalysisBucket } from '@/types/mutualFund';
 
 interface AnalysisTableProps {
@@ -16,49 +17,63 @@ function BucketTable({ data, keyHeader = 'Key' }: { data: AnalysisBucket[]; keyH
   // Sort by rank for display
   const sortedData = [...data].sort((a, b) => a.rank - b.rank);
 
+  // Prepare copyable data
+  const copyData = sortedData.map((b) => ({
+    Rank: b.rank,
+    [keyHeader]: b.label,
+    'Avg Deviation (%)': b.avgDeviation,
+    'Min Deviation (%)': b.minDeviation,
+    'Max Deviation (%)': b.maxDeviation,
+    'Volatility (%)': b.volatility,
+    Samples: b.samples,
+    Confidence: b.significance,
+  }));
+
   return (
-    <div className="max-h-96 overflow-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">Rank</TableHead>
-            <TableHead>{keyHeader}</TableHead>
-            <TableHead className="text-right">Avg Deviation</TableHead>
-            <TableHead className="text-right">Range</TableHead>
-            <TableHead className="text-right">Volatility</TableHead>
-            <TableHead className="text-right">Samples</TableHead>
-            <TableHead className="text-right">Confidence</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedData.map((bucket) => (
-            <TableRow 
-              key={bucket.key} 
-              className={bucket.rank === 1 ? 'bg-green-500/10' : bucket.rank === sortedData.length ? 'bg-red-500/10' : ''}
-            >
-              <TableCell className="font-medium">#{bucket.rank}</TableCell>
-              <TableCell className="font-medium">{bucket.label}</TableCell>
-              <TableCell className={`text-right font-mono ${bucket.avgDeviation < 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {bucket.avgDeviation > 0 ? '+' : ''}{bucket.avgDeviation.toFixed(4)}%
-              </TableCell>
-              <TableCell className="text-right text-muted-foreground text-xs">
-                {bucket.minDeviation.toFixed(2)}% to {bucket.maxDeviation.toFixed(2)}%
-              </TableCell>
-              <TableCell className="text-right text-muted-foreground">{bucket.volatility.toFixed(2)}%</TableCell>
-              <TableCell className="text-right text-muted-foreground">{bucket.samples}</TableCell>
-              <TableCell className="text-right">
-                <Badge 
-                  variant={bucket.significance === 'high' ? 'default' : bucket.significance === 'medium' ? 'secondary' : 'outline'}
-                  className="text-xs"
-                >
-                  {bucket.significance}
-                </Badge>
-              </TableCell>
+    <CopyableWrapper data={copyData} label={`${keyHeader} Analysis`}>
+      <div className="max-h-96 overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12">Rank</TableHead>
+              <TableHead>{keyHeader}</TableHead>
+              <TableHead className="text-right">Avg Deviation</TableHead>
+              <TableHead className="text-right">Range</TableHead>
+              <TableHead className="text-right">Volatility</TableHead>
+              <TableHead className="text-right">Samples</TableHead>
+              <TableHead className="text-right">Confidence</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {sortedData.map((bucket) => (
+              <TableRow 
+                key={bucket.key} 
+                className={bucket.rank === 1 ? 'bg-green-500/10' : bucket.rank === sortedData.length ? 'bg-red-500/10' : ''}
+              >
+                <TableCell className="font-medium">#{bucket.rank}</TableCell>
+                <TableCell className="font-medium">{bucket.label}</TableCell>
+                <TableCell className={`text-right font-mono ${bucket.avgDeviation < 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {bucket.avgDeviation > 0 ? '+' : ''}{bucket.avgDeviation.toFixed(4)}%
+                </TableCell>
+                <TableCell className="text-right text-muted-foreground text-xs">
+                  {bucket.minDeviation.toFixed(2)}% to {bucket.maxDeviation.toFixed(2)}%
+                </TableCell>
+                <TableCell className="text-right text-muted-foreground">{bucket.volatility.toFixed(2)}%</TableCell>
+                <TableCell className="text-right text-muted-foreground">{bucket.samples}</TableCell>
+                <TableCell className="text-right">
+                  <Badge 
+                    variant={bucket.significance === 'high' ? 'default' : bucket.significance === 'medium' ? 'secondary' : 'outline'}
+                    className="text-xs"
+                  >
+                    {bucket.significance}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </CopyableWrapper>
   );
 }
 
