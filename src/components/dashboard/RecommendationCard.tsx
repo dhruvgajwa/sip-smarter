@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 
 interface RecommendationCardProps {
   analysis: FundAnalysis | null;
+  compact?: boolean;
 }
 
 function SignalRow({ signal }: { signal: TimingSignal }) {
@@ -53,9 +54,11 @@ function SignalRow({ signal }: { signal: TimingSignal }) {
   );
 }
 
-export function RecommendationCard({ analysis }: RecommendationCardProps) {
+export function RecommendationCard({ analysis, compact = false }: RecommendationCardProps) {
   if (!analysis) {
-    return (
+    return compact ? (
+      <div className="text-muted-foreground text-sm">Run analysis to see recommendations</div>
+    ) : (
       <Card className="h-full">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -90,6 +93,38 @@ export function RecommendationCard({ analysis }: RecommendationCardProps) {
     })),
     caveats: recommendation.caveats,
   };
+
+  // Compact mode: just show primary recommendation
+  if (compact) {
+    return (
+      <CopyableWrapper data={copyData} label="Recommendations">
+        <div className="space-y-3">
+          <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-green-500 text-sm">{recommendation.primaryRecommendation}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  ~{recommendation.estimatedAdvantage.toFixed(3)}% advantage • {recommendation.overallConfidence} confidence
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {recommendation.secondaryRecommendations.length > 0 && (
+            <ul className="text-xs text-muted-foreground space-y-1">
+              {recommendation.secondaryRecommendations.slice(0, 2).map((rec, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="text-blue-500">•</span>
+                  {rec}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </CopyableWrapper>
+    );
+  }
 
   return (
     <Card className="h-full">
