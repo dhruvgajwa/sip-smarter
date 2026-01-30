@@ -151,6 +151,20 @@ export function calculateOptimalEntry(
 /**
  * Calculate optimal monthly distribution strategy
  */
+/**
+ * Timeframe weights - longer periods are more statistically significant
+ */
+const TIMEFRAME_WEIGHTS: Record<Timeframe, number> = {
+  '1Y': 0.1,   // Recent but volatile, low weight
+  '3Y': 0.2,   // Short-medium term
+  '5Y': 0.3,   // Medium-long term
+  '10Y': 0.4,  // Most reliable, highest weight
+};
+
+/**
+ * Calculate optimal monthly distribution strategy
+ * Uses weighted averaging where longer timeframes have higher significance
+ */
 export function calculateDistributionStrategy(
   multiAnalysis: MultiTimeframeAnalysis
 ): DistributionStrategy {
@@ -158,7 +172,13 @@ export function calculateDistributionStrategy(
   
   const linearAllocation = 1 / 12; // 8.33%
   
-  // Collect monthly data across timeframes
+  // Track which timeframes are available
+  const availableTimeframes: Timeframe[] = [];
+  TIMEFRAMES.forEach(({ value: tf }) => {
+    if (analyses[tf]) availableTimeframes.push(tf);
+  });
+  
+  // Collect monthly data across timeframes with proper weighting
   const monthlyData: MonthlyAllocation[] = [];
   
   for (let month = 0; month < 12; month++) {
@@ -169,7 +189,9 @@ export function calculateDistributionStrategy(
       '10Y': null,
     };
     
-    const availableDeviations: number[] = [];
+    let weightedSum = 0;
+    let totalWeight = 0;
+    const deviationValues: number[] = [];
     
     TIMEFRAMES.forEach(({ value: tf }) => {
       const analysis = analyses[tf];
@@ -178,47 +200,90 @@ export function calculateDistributionStrategy(
       const monthBucket = analysis.monthOfYear.find(b => b.key === month);
       if (monthBucket) {
         deviations[tf] = monthBucket.avgDeviation;
-        availableDeviations.push(monthBucket.avgDeviation);
+        deviationValues.push(monthBucket.avgDeviation);
+        
+        // Weighted contribution
+        const weight = TIMEFRAME_WEIGHTS[tf];
+        weightedSum += monthBucket.avgDeviation * weight;
+        totalWeight += weight;
       }
     });
     
-    const avgDeviation = availableDeviations.length > 0
-      ? availableDeviations.reduce((a, b) => a + b, 0) / availableDeviations.length
-      : 0;
+    // Use weighted average instead of simple average
+    const avgDeviation = totalWeight > 0 ? weightedSum / totalWeight : 0;
     
     monthlyData.push({
       month,
       monthLabel: MONTH_LABELS[month],
       avgDeviation,
       deviationsByTimeframe: deviations,
-      recommendedWeight: 0, // Will be calculated
+      recommendedWeight: 0,
       vsEqualWeight: 0,
     });
   }
   
-  // Calculate weighted distribution
-  // Idea: Invest MORE in months with negative deviation (cheaper), LESS in positive deviation (expensive)
-  // Use inverse sigmoid-like scaling to avoid extreme weights
+  // Check consistency across timeframes
+  // A month is "consistently cheap" if it's below average in most long-term timeframes
+  const consistencyCheck = monthlyData.map(m => {
+    let agreementCount = 0;
+    let longTermAgreement = 0;
+    
+    (['3Y', '5Y', '10Y'] as Timeframe[]).forEach(tf => {
+      const dev = m.deviationsByTimeframe[tf];
+      if (dev !== null) {
+        if (dev < 0) longTermAgreement++;
+      }
+    });
+    
+    // Count how many timeframes agree on direction
+    availableTimeframes.forEach(tf => {
+      const dev = m.deviationsByTimeframe[tf];
+      if (dev !== null && dev < 0) agreementCount++;
+    });
+    
+    return {
+      month: m.month,
+      agreementRatio: availableTimeframes.length > 0 ? agreementCount / availableTimeframes.length : 0,
+      longTermConsistent: longTermAgreement >= 2, // At least 2 of 3Y/5Y/10Y agree
+    };
+  });
+  
+  // Calculate weighted distribution only if we have enough long-term data
+  const hasLongTermData = availableTimeframes.includes('5Y') || availableTimeframes.includes('10Y');
+  const has10YData = availableTimeframes.includes('10Y');
   
   const allDeviations = monthlyData.map(m => m.avgDeviation);
   const minDev = Math.min(...allDeviations);
   const maxDev = Math.max(...allDeviations);
   const range = maxDev - minDev;
   
-  if (range < 0.01) {
-    // If range is tiny, just use equal distribution
+  // More conservative threshold for recommending weighted distribution
+  const shouldUseWeighted = range > 0.03 && hasLongTermData;
+  
+  if (!shouldUseWeighted || range < 0.01) {
     monthlyData.forEach(m => {
       m.recommendedWeight = linearAllocation;
       m.vsEqualWeight = 0;
     });
   } else {
-    // Calculate raw weights (inverted: lower deviation = higher weight)
-    const rawWeights = monthlyData.map(m => {
-      // Normalize to 0-1 where 0 = worst (highest deviation), 1 = best (lowest deviation)
+    // Only apply weighting to months that are CONSISTENTLY cheap across long-term data
+    const rawWeights = monthlyData.map((m, i) => {
+      const consistency = consistencyCheck[i];
+      
+      // Normalize to 0-1 where 0 = worst, 1 = best
       const normalized = 1 - (m.avgDeviation - minDev) / range;
-      // Apply mild adjustment (not too extreme)
-      // Use range of 0.5x to 1.5x of equal weight
-      return linearAllocation * (0.5 + normalized);
+      
+      // If month is consistently cheap in long-term data, amplify slightly
+      // If NOT consistent, dampen the effect
+      let adjustmentFactor = 1.0;
+      if (consistency.longTermConsistent && m.avgDeviation < 0) {
+        adjustmentFactor = 1.15; // Slight boost for consistent patterns
+      } else if (!consistency.longTermConsistent && m.avgDeviation < 0) {
+        adjustmentFactor = 0.9; // Reduce weight if pattern isn't consistent
+      }
+      
+      // More conservative range: 0.7x to 1.3x of equal weight
+      return linearAllocation * (0.7 + normalized * 0.6) * adjustmentFactor;
     });
     
     // Normalize to sum to 1
@@ -234,33 +299,52 @@ export function calculateDistributionStrategy(
   const weightedExpectedDeviation = monthlyData.reduce((sum, m) => sum + m.avgDeviation * m.recommendedWeight, 0);
   const potentialImprovement = linearExpectedDeviation - weightedExpectedDeviation;
   
-  // Determine recommendation
+  // Stricter recommendation criteria
   let recommendation: 'linear' | 'weighted' | 'hybrid' = 'linear';
   const reasoning: string[] = [];
   
-  if (potentialImprovement > 0.02) {
+  // Add data quality context
+  if (!hasLongTermData) {
+    reasoning.push(`⚠️ Only short-term data available. Long-term patterns (5Y/10Y) are required for reliable recommendations.`);
+    recommendation = 'linear';
+  } else if (!has10YData) {
+    reasoning.push(`Note: 10Y data not available. Recommendations based on 3Y-5Y patterns.`);
+  } else {
+    reasoning.push(`Analysis weighted by timeframe: 10Y (40%), 5Y (30%), 3Y (20%), 1Y (10%) for statistical reliability.`);
+  }
+  
+  // Check for consistent patterns
+  const consistentCheapMonths = monthlyData.filter((m, i) => 
+    consistencyCheck[i].longTermConsistent && m.avgDeviation < -0.02
+  );
+  const consistentExpensiveMonths = monthlyData.filter((m, i) => 
+    consistencyCheck[i].longTermConsistent && m.avgDeviation > 0.02
+  );
+  
+  if (hasLongTermData && potentialImprovement > 0.025 && consistentCheapMonths.length >= 2) {
     recommendation = 'weighted';
-    reasoning.push(`Weighted distribution could improve returns by approximately ${(potentialImprovement).toFixed(3)}% per year.`);
-    reasoning.push(`Invest more in historically cheaper months: ${monthlyData.filter(m => m.recommendedWeight > linearAllocation * 1.1).map(m => m.monthLabel).join(', ')}.`);
-  } else if (potentialImprovement > 0.005) {
+    reasoning.push(`Weighted distribution recommended: ${consistentCheapMonths.length} months show consistent negative deviation across long-term data.`);
+    reasoning.push(`Invest more in: ${consistentCheapMonths.map(m => m.monthLabel).join(', ')}.`);
+  } else if (hasLongTermData && potentialImprovement > 0.01 && consistentCheapMonths.length >= 1) {
     recommendation = 'hybrid';
-    reasoning.push(`Slight advantage to weighted distribution (${(potentialImprovement).toFixed(3)}%), but the difference is minimal.`);
-    reasoning.push(`Consider a hybrid approach: standard SIP with occasional top-ups in favorable months.`);
+    reasoning.push(`Consider occasional top-ups in ${consistentCheapMonths.map(m => m.monthLabel).join(', ')} - these show consistent patterns.`);
+    reasoning.push(`Overall improvement potential is modest (${(potentialImprovement * 100).toFixed(2)}%), so stick with regular SIP as base.`);
   } else {
     recommendation = 'linear';
-    reasoning.push(`Monthly patterns are not significant enough (${(potentialImprovement).toFixed(4)}% difference) to warrant complex allocation.`);
-    reasoning.push(`Stick with regular monthly SIP - consistency and discipline matter more than timing.`);
+    if (hasLongTermData) {
+      reasoning.push(`Monthly patterns are not consistent enough across timeframes to warrant deviation from regular SIP.`);
+      reasoning.push(`Discipline and consistency in a regular SIP outweigh marginal timing benefits.`);
+    }
   }
   
-  // Add insight about volatility
-  const cheapestMonth = [...monthlyData].sort((a, b) => a.avgDeviation - b.avgDeviation)[0];
-  const expensiveMonth = [...monthlyData].sort((a, b) => b.avgDeviation - a.avgDeviation)[0];
-  
-  if (range > 0.05) {
-    reasoning.push(`${cheapestMonth.monthLabel} tends to be the cheapest month (${cheapestMonth.avgDeviation.toFixed(3)}% below avg), while ${expensiveMonth.monthLabel} is typically more expensive (+${expensiveMonth.avgDeviation.toFixed(3)}%).`);
+  // Add insight about best/worst months if patterns exist
+  if (hasLongTermData && range > 0.03) {
+    const cheapestMonth = [...monthlyData].sort((a, b) => a.avgDeviation - b.avgDeviation)[0];
+    const expensiveMonth = [...monthlyData].sort((a, b) => b.avgDeviation - a.avgDeviation)[0];
+    reasoning.push(`Historical pattern: ${cheapestMonth.monthLabel} tends to be cheapest (${cheapestMonth.avgDeviation.toFixed(3)}%), ${expensiveMonth.monthLabel} most expensive (${expensiveMonth.avgDeviation > 0 ? '+' : ''}${expensiveMonth.avgDeviation.toFixed(3)}%).`);
   }
   
-  // Generate practical allocation (relative to ₹10,000 base)
+  // Generate practical allocation
   const baseAmount = 10000;
   const practicalAllocation = monthlyData.map(m => ({
     month: m.monthLabel,
