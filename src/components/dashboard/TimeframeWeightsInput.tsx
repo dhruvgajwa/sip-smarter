@@ -1,10 +1,11 @@
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/button';
 import { Settings2 } from 'lucide-react';
 import type { TimeframeWeights } from '@/types/strategy';
 import { TIMEFRAMES } from '@/types/mutualFund';
+import { WEIGHT_PRESETS } from '@/services/strategyService';
 
 interface TimeframeWeightsInputProps {
   weights: TimeframeWeights;
@@ -33,6 +34,20 @@ export function TimeframeWeightsInput({ weights, onChange }: TimeframeWeightsInp
     onChange(normalized);
   };
 
+  const applyPreset = (presetKey: string) => {
+    const preset = WEIGHT_PRESETS[presetKey];
+    if (preset) {
+      onChange(preset.weights);
+    }
+  };
+
+  // Check which preset matches current weights
+  const activePreset = Object.entries(WEIGHT_PRESETS).find(([_, preset]) => 
+    Object.entries(preset.weights).every(([tf, w]) => 
+      Math.abs(weights[tf as keyof TimeframeWeights] - w) < 0.01
+    )
+  )?.[0];
+
   return (
     <Card className="bg-muted/30 border-border">
       <CardContent className="pt-4 space-y-4">
@@ -54,6 +69,22 @@ export function TimeframeWeightsInput({ weights, onChange }: TimeframeWeightsInp
               </button>
             )}
           </div>
+        </div>
+
+        {/* Presets */}
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(WEIGHT_PRESETS).map(([key, preset]) => (
+            <Button
+              key={key}
+              variant={activePreset === key ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => applyPreset(key)}
+              className="text-xs"
+              title={preset.description}
+            >
+              {preset.label}
+            </Button>
+          ))}
         </div>
         
         <div className="grid grid-cols-4 gap-3">
@@ -78,7 +109,7 @@ export function TimeframeWeightsInput({ weights, onChange }: TimeframeWeightsInp
         </div>
         
         <p className="text-xs text-muted-foreground">
-          Adjust how much each timeframe influences the recommendation. Higher weight = more importance.
+          Long-term holders should weight 5Y/10Y data more heavily. Short-term patterns (1Y) are often noise.
         </p>
       </CardContent>
     </Card>
