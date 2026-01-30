@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { Info } from 'lucide-react';
+import { CopyableWrapper } from './CopyableWrapper';
 import type { AnalysisBucket } from '@/types/mutualFund';
 
 interface WeekdayChartProps {
@@ -45,6 +46,14 @@ export function WeekdayChart({ data, title = 'Weekday Analysis' }: WeekdayChartP
     shortLabel: d.label.slice(0, 3),
   }));
 
+  // Prepare copyable data
+  const copyData = data.map((d) => ({
+    Weekday: d.label,
+    'Avg Deviation (%)': d.avgDeviation,
+    Samples: d.samples,
+    Rank: d.rank,
+  }));
+
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
@@ -63,49 +72,51 @@ export function WeekdayChart({ data, title = 'Weekday Analysis' }: WeekdayChartP
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <XAxis 
-                dataKey="shortLabel" 
-                tick={{ fontSize: 11 }}
-                axisLine={{ stroke: 'hsl(var(--border))' }}
-                tickLine={false}
-              />
-              <YAxis 
-                tick={{ fontSize: 9 }}
-                tickFormatter={(v) => `${v > 0 ? '+' : ''}${v.toFixed(2)}%`}
-                axisLine={false}
-                tickLine={false}
-                domain={['auto', 'auto']}
-              />
-              <Tooltip 
-                content={({ active, payload }) => {
-                  if (!active || !payload?.[0]) return null;
-                  const d = payload[0].payload as AnalysisBucket;
-                  return (
-                    <div className="bg-background border border-border rounded-lg p-3 shadow-lg text-sm">
-                      <p className="font-semibold">{d.label}</p>
-                      <div className="mt-2 space-y-1">
-                        <p className={d.avgDeviation < 0 ? 'text-green-500' : 'text-red-500'}>
-                          Avg: {d.avgDeviation > 0 ? '+' : ''}{d.avgDeviation.toFixed(3)}%
-                        </p>
-                        <p className="text-muted-foreground">Based on {d.samples} observations</p>
-                        <p className="text-muted-foreground">Rank: #{d.rank} of {data.length}</p>
+        <CopyableWrapper data={copyData} label="Weekday Analysis">
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <XAxis 
+                  dataKey="shortLabel" 
+                  tick={{ fontSize: 11 }}
+                  axisLine={{ stroke: 'hsl(var(--border))' }}
+                  tickLine={false}
+                />
+                <YAxis 
+                  tick={{ fontSize: 9 }}
+                  tickFormatter={(v) => `${v > 0 ? '+' : ''}${v.toFixed(2)}%`}
+                  axisLine={false}
+                  tickLine={false}
+                  domain={['auto', 'auto']}
+                />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.[0]) return null;
+                    const d = payload[0].payload as AnalysisBucket;
+                    return (
+                      <div className="bg-background border border-border rounded-lg p-3 shadow-lg text-sm">
+                        <p className="font-semibold">{d.label}</p>
+                        <div className="mt-2 space-y-1">
+                          <p className={d.avgDeviation < 0 ? 'text-green-500' : 'text-red-500'}>
+                            Avg: {d.avgDeviation > 0 ? '+' : ''}{d.avgDeviation.toFixed(3)}%
+                          </p>
+                          <p className="text-muted-foreground">Based on {d.samples} observations</p>
+                          <p className="text-muted-foreground">Rank: #{d.rank} of {data.length}</p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                }}
-              />
-              <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
-              <Bar dataKey="avgDeviation" radius={[4, 4, 0, 0]} maxBarSize={60}>
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={getBarColor(entry.avgDeviation)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+                    );
+                  }}
+                />
+                <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+                <Bar dataKey="avgDeviation" radius={[4, 4, 0, 0]} maxBarSize={60}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={getBarColor(entry.avgDeviation)} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CopyableWrapper>
         <div className="flex items-center gap-1 text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
           <Info className="h-3 w-3" />
           Markets are closed on weekends; only trading days analyzed
