@@ -94,35 +94,51 @@ export function RecommendationCard({ analysis, compact = false }: Recommendation
     caveats: recommendation.caveats,
   };
 
-  // Compact mode: just show primary recommendation
+  // Compact mode: show in a card format
   if (compact) {
     return (
-      <CopyableWrapper data={copyData} label="Recommendations">
-        <div className="space-y-3">
-          <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-              <div>
-                <p className="font-medium text-green-500 text-sm">{recommendation.primaryRecommendation}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  ~{recommendation.estimatedAdvantage.toFixed(3)}% advantage • {recommendation.overallConfidence} confidence
-                </p>
+      <Card className="h-full">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Lightbulb className="h-4 w-4 text-yellow-500" />
+            Recommendation
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CopyableWrapper data={copyData} label="Recommendations">
+            <div className="space-y-3">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium text-green-500 text-sm">{recommendation.primaryRecommendation}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      ~{recommendation.estimatedAdvantage.toFixed(3)}% advantage • {recommendation.overallConfidence} confidence
+                    </p>
+                  </div>
+                </div>
               </div>
+              
+              {recommendation.secondaryRecommendations.length > 0 && (
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  {recommendation.secondaryRecommendations.slice(0, 3).map((rec, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <span className="text-blue-500">•</span>
+                      {rec}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {recommendation.caveats.length > 0 && (
+                <div className="text-xs text-muted-foreground border-t border-border pt-2">
+                  <span className="text-yellow-500">⚠</span> {recommendation.caveats[0]}
+                </div>
+              )}
             </div>
-          </div>
-          
-          {recommendation.secondaryRecommendations.length > 0 && (
-            <ul className="text-xs text-muted-foreground space-y-1">
-              {recommendation.secondaryRecommendations.slice(0, 2).map((rec, i) => (
-                <li key={i} className="flex items-start gap-1.5">
-                  <span className="text-blue-500">•</span>
-                  {rec}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </CopyableWrapper>
+          </CopyableWrapper>
+        </CardContent>
+      </Card>
     );
   }
 

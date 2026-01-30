@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { RefreshCw, TrendingUp, CalendarDays, PieChart, BarChart3, Info, Target, Layers } from 'lucide-react';
+import { RefreshCw, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 
@@ -15,10 +16,8 @@ import { filterByTimeframe } from '@/services/dateUtils';
 import { ConsolePanel } from './ConsolePanel';
 import { TimeframeSelector } from './TimeframeSelector';
 import { FundTabs } from './FundTabs';
-import { CollapsibleBlock } from './CollapsibleBlock';
-import { DashboardLayout, BlockGrid, BlockStack } from './DashboardLayout';
 
-// Chart/Table components
+// Components
 import { SummaryCards } from './SummaryCards';
 import { RecommendationCard } from './RecommendationCard';
 import { NavTrendChart } from './NavTrendChart';
@@ -31,6 +30,15 @@ import { AnalysisTable } from './AnalysisTable';
 import { MultiTimeframeSection } from './MultiTimeframeSection';
 import { MonthlyDistributionSection } from './MonthlyDistributionSection';
 import { BestSipDateBlock } from './BestSipDateBlock';
+
+function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div className="mb-4">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+    </div>
+  );
+}
 
 export function Dashboard() {
   const { logs, log, clear } = useConsoleLog();
@@ -53,7 +61,6 @@ export function Dashboard() {
     fetchData();
   }, []);
 
-  // Get current analysis based on selection
   const currentAnalysis = selectedFund === 'all' 
     ? (analysisResults.size > 0 ? analysisResults.values().next().value : null)
     : analysisResults.get(selectedFund) || null;
@@ -76,9 +83,9 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Compact Header */}
+      {/* Header */}
       <header className="border-b border-border bg-card px-4 py-3 sticky top-0 z-20">
-        <DashboardLayout className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <TrendingUp className="h-5 w-5 text-primary" />
             <div>
@@ -97,116 +104,107 @@ export function Dashboard() {
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
-        </DashboardLayout>
+        </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 p-4">
-        <DashboardLayout>
-          <BlockStack gap="md">
-            {/* Row 1: Key Metrics + NAV Trend */}
-            <BlockGrid cols={2}>
-              {/* Left: Summary + Recommendation */}
-              <BlockStack gap="sm">
-                <CollapsibleBlock
-                  title="Key Metrics"
-                  icon={<BarChart3 className="h-4 w-4" />}
-                  defaultOpen={true}
-                  compact
-                  badge={
-                    <Badge variant="outline" className="text-xs">
-                      {timeframe}
-                    </Badge>
-                  }
-                >
-                  <SummaryCards analysis={currentAnalysis} />
-                </CollapsibleBlock>
+        <div className="max-w-7xl mx-auto space-y-8">
+          
+          {/* ========================================= */}
+          {/* SECTION 1: OVERVIEW                      */}
+          {/* ========================================= */}
+          <section>
+            <SectionHeader 
+              title="Overview" 
+              subtitle={`${currentFundName} — ${timeframe} performance snapshot`} 
+            />
+            
+            {/* Key Metrics */}
+            <SummaryCards analysis={currentAnalysis} />
+            
+            {/* NAV Trend + Recommendation side by side */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+              <div className="lg:col-span-2">
+                <NavTrendChart 
+                  data={filteredNavData} 
+                  title={`NAV Trend — ${currentFundName}`}
+                />
+              </div>
+              <div>
+                <RecommendationCard analysis={currentAnalysis} compact />
+              </div>
+            </div>
+          </section>
 
-                <CollapsibleBlock
-                  title="Quick Recommendation"
-                  icon={<Target className="h-4 w-4" />}
-                  defaultOpen={true}
-                  compact
-                >
-                  <RecommendationCard analysis={currentAnalysis} compact />
-                </CollapsibleBlock>
-              </BlockStack>
+          {/* ========================================= */}
+          {/* SECTION 2: BEST SIP DATE                 */}
+          {/* ========================================= */}
+          <section>
+            <SectionHeader 
+              title="Best SIP Date by Month" 
+              subtitle="Which day of each month should you set your SIP? Based on nDCG ranking across timeframes."
+            />
+            <BestSipDateBlock analysis={currentMonthlyEntry} />
+          </section>
 
-              {/* Right: NAV Trend */}
-              <CollapsibleBlock
-                title="NAV Trend"
-                subtitle={`${currentFundName} — ${timeframe}`}
-                icon={<TrendingUp className="h-4 w-4" />}
-                defaultOpen={true}
-                compact
-                copyData={filteredNavData.map(d => ({ date: d.date, nav: d.nav }))}
-              >
-                <NavTrendChart data={filteredNavData} compact />
-              </CollapsibleBlock>
-            </BlockGrid>
+          {/* ========================================= */}
+          {/* SECTION 3: FACTOR ANALYSIS               */}
+          {/* ========================================= */}
+          <section>
+            <SectionHeader 
+              title="Factor Analysis" 
+              subtitle={`How does NAV deviation vary by timing factors? (${timeframe} data)`}
+            />
+            
+            {/* 2x2 grid of factor charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <DayAnalysisChart data={currentAnalysis?.dayOfMonth || []} title="Day of Month" />
+              <WeekAnalysisChart data={currentAnalysis?.weekOfMonth || []} title="Week of Month" />
+              <WeekdayChart data={currentAnalysis?.dayOfWeek || []} title="Weekday" />
+              <MonthAnalysisChart data={currentAnalysis?.monthOfYear || []} title="Month of Year" />
+            </div>
+            
+            {/* Quarter gets its own row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <QuarterAnalysisChart data={currentAnalysis?.quarterOfYear || []} title="Quarter" />
+            </div>
+          </section>
 
-            {/* Row 2: Best SIP Date (Primary Question) */}
-            <CollapsibleBlock
-              title="Best SIP Date"
-              subtitle="Which day of the month should you set your SIP?"
-              icon={<CalendarDays className="h-4 w-4" />}
-              defaultOpen={true}
-              badge={
-                currentMonthlyEntry && (
-                  <Badge variant="outline" className="text-xs">
-                    {currentMonthlyEntry.dataQuality.toUpperCase()}
-                  </Badge>
-                )
-              }
-            >
-              <BestSipDateBlock analysis={currentMonthlyEntry} />
-            </CollapsibleBlock>
+          {/* ========================================= */}
+          {/* SECTION 4: MONTHLY ALLOCATION            */}
+          {/* ========================================= */}
+          <section>
+            <SectionHeader 
+              title="Monthly Allocation Strategy" 
+              subtitle="Should you vary your SIP amount by month? Compare constant vs weighted distribution."
+            />
+            <MonthlyDistributionSection multiAnalysis={currentMultiAnalysis} />
+          </section>
 
-            {/* Row 3: Monthly Allocation */}
-            <CollapsibleBlock
-              title="Monthly Allocation Strategy"
-              subtitle="Should you vary your SIP amount by month?"
-              icon={<PieChart className="h-4 w-4" />}
-              defaultOpen={false}
-            >
-              <MonthlyDistributionSection multiAnalysis={currentMultiAnalysis} />
-            </CollapsibleBlock>
+          {/* ========================================= */}
+          {/* SECTION 5: TIMEFRAME COMPARISON          */}
+          {/* ========================================= */}
+          <section>
+            <SectionHeader 
+              title="Cross-Timeframe Comparison" 
+              subtitle="How consistent are patterns across 1Y, 3Y, 5Y, and 10Y?"
+            />
+            <MultiTimeframeSection multiAnalysis={multiAnalysis} selectedFund={selectedFund} />
+          </section>
 
-            {/* Row 4: Deep Dive / Raw Data */}
-            <CollapsibleBlock
-              title="Factor Analysis & Raw Data"
-              subtitle="Explore underlying patterns by day, week, month, and quarter"
-              icon={<Layers className="h-4 w-4" />}
-              defaultOpen={false}
-            >
-              <Tabs defaultValue="factors" className="space-y-4">
-                <TabsList className="h-8">
-                  <TabsTrigger value="factors" className="text-xs px-3">By Factor</TabsTrigger>
-                  <TabsTrigger value="timeframes" className="text-xs px-3">Timeframes</TabsTrigger>
-                  <TabsTrigger value="table" className="text-xs px-3">Raw Table</TabsTrigger>
-                </TabsList>
+          {/* ========================================= */}
+          {/* SECTION 6: RAW DATA                      */}
+          {/* ========================================= */}
+          <section>
+            <SectionHeader 
+              title="Raw Data Table" 
+              subtitle="Complete analysis breakdown for export"
+            />
+            <AnalysisTable analysis={currentAnalysis} />
+          </section>
 
-                <TabsContent value="factors">
-                  <BlockGrid cols={2}>
-                    <DayAnalysisChart data={currentAnalysis?.dayOfMonth || []} title="Day of Month" />
-                    <WeekAnalysisChart data={currentAnalysis?.weekOfMonth || []} title="Week of Month" />
-                    <WeekdayChart data={currentAnalysis?.dayOfWeek || []} title="Weekday" />
-                    <MonthAnalysisChart data={currentAnalysis?.monthOfYear || []} title="Month of Year" />
-                    <QuarterAnalysisChart data={currentAnalysis?.quarterOfYear || []} title="Quarter" />
-                  </BlockGrid>
-                </TabsContent>
-
-                <TabsContent value="timeframes">
-                  <MultiTimeframeSection multiAnalysis={multiAnalysis} selectedFund={selectedFund} />
-                </TabsContent>
-
-                <TabsContent value="table">
-                  <AnalysisTable analysis={currentAnalysis} />
-                </TabsContent>
-              </Tabs>
-            </CollapsibleBlock>
-          </BlockStack>
-        </DashboardLayout>
+        </div>
       </main>
 
       <ConsolePanel logs={logs} onClear={clear} />
