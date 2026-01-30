@@ -22,6 +22,7 @@ import { MonthAnalysisChart } from './MonthAnalysisChart';
 import { QuarterAnalysisChart } from './QuarterAnalysisChart';
 import { AnalysisTable } from './AnalysisTable';
 import { MultiTimeframeSection } from './MultiTimeframeSection';
+import { StrategySection } from './StrategySection';
 
 export function Dashboard() {
   const { logs, log, clear } = useConsoleLog();
@@ -143,6 +144,12 @@ export function Dashboard() {
 
           {/* Detailed Analysis Table */}
           <AnalysisTable analysis={currentAnalysis} />
+
+          {/* Investment Strategy Section */}
+          <StrategySection 
+            multiAnalysis={multiAnalysis} 
+            selectedFund={selectedFund} 
+          />
 
           {/* Multi-Timeframe Comparison Section */}
           <MultiTimeframeSection 
