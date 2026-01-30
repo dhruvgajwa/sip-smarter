@@ -9,10 +9,10 @@ interface TimeframeComparisonChartProps {
 }
 
 const TIMEFRAME_COLORS = {
-  '1Y': 'hsl(var(--chart-1))',
-  '3Y': 'hsl(var(--chart-2))',
-  '5Y': 'hsl(var(--chart-3))',
-  '10Y': 'hsl(var(--chart-4))',
+  '1Y': 'hsl(200, 70%, 50%)',  // Blue
+  '3Y': 'hsl(160, 60%, 45%)',  // Teal
+  '5Y': 'hsl(280, 60%, 55%)',  // Purple
+  '10Y': 'hsl(30, 80%, 55%)',  // Orange
 };
 
 export function TimeframeComparisonChart({ data, title, subtitle }: TimeframeComparisonChartProps) {
