@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import type { FundAnalysis, AnalysisBucket } from '@/types/mutualFund';
 
 interface AnalysisTableProps {
@@ -22,12 +23,11 @@ function BucketTable({ data, keyHeader = 'Key' }: { data: AnalysisBucket[]; keyH
           <TableRow>
             <TableHead className="w-12">Rank</TableHead>
             <TableHead>{keyHeader}</TableHead>
-            <TableHead className="text-right">Avg NAV</TableHead>
-            <TableHead className="text-right">Min</TableHead>
-            <TableHead className="text-right">Max</TableHead>
+            <TableHead className="text-right">Avg Deviation</TableHead>
+            <TableHead className="text-right">Range</TableHead>
             <TableHead className="text-right">Volatility</TableHead>
             <TableHead className="text-right">Samples</TableHead>
-            <TableHead className="text-right">vs Best</TableHead>
+            <TableHead className="text-right">Confidence</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -38,13 +38,21 @@ function BucketTable({ data, keyHeader = 'Key' }: { data: AnalysisBucket[]; keyH
             >
               <TableCell className="font-medium">#{bucket.rank}</TableCell>
               <TableCell className="font-medium">{bucket.label}</TableCell>
-              <TableCell className="text-right">{bucket.avgNav.toFixed(2)}</TableCell>
-              <TableCell className="text-right text-muted-foreground">{bucket.minNav.toFixed(2)}</TableCell>
-              <TableCell className="text-right text-muted-foreground">{bucket.maxNav.toFixed(2)}</TableCell>
+              <TableCell className={`text-right font-mono ${bucket.avgDeviation < 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {bucket.avgDeviation > 0 ? '+' : ''}{bucket.avgDeviation.toFixed(4)}%
+              </TableCell>
+              <TableCell className="text-right text-muted-foreground text-xs">
+                {bucket.minDeviation.toFixed(2)}% to {bucket.maxDeviation.toFixed(2)}%
+              </TableCell>
               <TableCell className="text-right text-muted-foreground">{bucket.volatility.toFixed(2)}%</TableCell>
               <TableCell className="text-right text-muted-foreground">{bucket.samples}</TableCell>
-              <TableCell className={`text-right ${bucket.vsBest > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                {bucket.vsBest === 0 ? '-' : `+${bucket.vsBest.toFixed(2)}%`}
+              <TableCell className="text-right">
+                <Badge 
+                  variant={bucket.significance === 'high' ? 'default' : bucket.significance === 'medium' ? 'secondary' : 'outline'}
+                  className="text-xs"
+                >
+                  {bucket.significance}
+                </Badge>
               </TableCell>
             </TableRow>
           ))}
@@ -72,6 +80,9 @@ export function AnalysisTable({ analysis }: AnalysisTableProps) {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Detailed Analysis</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Sorted by rank (best to worst). Negative deviation = NAV below average = better for buying.
+        </p>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="day" className="w-full">

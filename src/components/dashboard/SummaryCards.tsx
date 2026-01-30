@@ -26,37 +26,37 @@ export function SummaryCards({ analysis }: SummaryCardsProps) {
     {
       label: 'Best Day',
       value: analysis.bestDay?.label || '-',
-      subtext: analysis.bestDay ? `${analysis.worstDay.vsBest.toFixed(2)}% savings vs worst` : '',
+      subtext: analysis.bestDay ? `${analysis.bestDay.avgDeviation.toFixed(3)}% below avg` : '',
       icon: Calendar,
       color: 'text-green-500',
     },
     {
       label: 'Best Week',
       value: analysis.bestWeek?.label || '-',
-      subtext: analysis.bestWeek ? `${analysis.worstWeek.vsBest.toFixed(2)}% savings vs worst` : '',
+      subtext: analysis.bestWeek ? `${analysis.bestWeek.avgDeviation.toFixed(3)}% below avg` : '',
       icon: CalendarDays,
       color: 'text-blue-500',
     },
     {
       label: 'Best Weekday',
       value: analysis.bestWeekday?.label || '-',
-      subtext: analysis.bestWeekday ? `${analysis.worstWeekday.vsBest.toFixed(2)}% savings vs worst` : '',
+      subtext: analysis.bestWeekday ? `${analysis.bestWeekday.avgDeviation.toFixed(3)}% below avg` : '',
       icon: Clock,
       color: 'text-purple-500',
     },
     {
       label: 'Best Month',
       value: analysis.bestMonth?.label || '-',
-      subtext: analysis.bestMonth ? `${analysis.worstMonth.vsBest.toFixed(2)}% savings vs worst` : '',
+      subtext: analysis.bestMonth ? `${analysis.bestMonth.avgDeviation.toFixed(3)}% below avg` : '',
       icon: BarChart3,
       color: 'text-orange-500',
     },
     {
       label: `${analysis.timeframe} Return`,
-      value: `${analysis.threeYearReturn >= 0 ? '+' : ''}${analysis.threeYearReturn.toFixed(1)}%`,
+      value: `${analysis.periodReturn >= 0 ? '+' : ''}${analysis.periodReturn.toFixed(1)}%`,
       subtext: `${analysis.totalSamples} data points`,
       icon: TrendingUp,
-      color: analysis.threeYearReturn >= 0 ? 'text-green-500' : 'text-red-500',
+      color: analysis.periodReturn >= 0 ? 'text-green-500' : 'text-red-500',
     },
   ];
 

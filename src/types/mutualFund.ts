@@ -26,13 +26,40 @@ export interface FundData {
 export interface AnalysisBucket {
   key: string | number;
   label: string;
-  avgNav: number;
-  minNav: number;
-  maxNav: number;
+  avgDeviation: number; // Average % deviation from 30-day moving average (negative = good for buying)
+  minDeviation: number;
+  maxDeviation: number;
   samples: number;
   volatility: number;
   rank: number;
-  vsBest: number; // percentage difference vs best
+  vsBest: number; // How much worse than the best option (percentage points)
+  significance: 'high' | 'medium' | 'low';
+}
+
+export interface TimingSignal {
+  factor: string;
+  bestOption: string;
+  worstOption: string;
+  advantage: number; // Percentage point advantage
+  confidence: 'high' | 'medium' | 'low';
+  weight: number;
+  reasoning: string;
+  topThree: string[];
+  bottomThree: string[];
+}
+
+export interface ComprehensiveRecommendation {
+  signals: TimingSignal[];
+  primaryRecommendation: string;
+  secondaryRecommendations: string[];
+  caveats: string[];
+  estimatedAdvantage: number;
+  overallConfidence: 'high' | 'medium' | 'low';
+  dataQuality: {
+    totalSamples: number;
+    timeframe: Timeframe;
+    dateRange: { start: Date; end: Date };
+  };
 }
 
 export interface FundAnalysis {
@@ -41,7 +68,7 @@ export interface FundAnalysis {
   timeframe: Timeframe;
   totalSamples: number;
   dateRange: { start: Date; end: Date };
-  threeYearReturn: number;
+  periodReturn: number;
   
   // Analysis by different factors
   dayOfMonth: AnalysisBucket[];
