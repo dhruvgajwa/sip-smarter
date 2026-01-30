@@ -6,9 +6,11 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Refere
 
 interface DistributionStrategyCardProps {
   strategy: DistributionStrategy | null;
+  baseAmount?: number;
 }
 
-export function DistributionStrategyCard({ strategy }: DistributionStrategyCardProps) {
+export function DistributionStrategyCard({ strategy, baseAmount = 10000 }: DistributionStrategyCardProps) {
+  const yearlyAmount = baseAmount * 12;
   if (!strategy) {
     return (
       <Card>
@@ -25,7 +27,16 @@ export function DistributionStrategyCard({ strategy }: DistributionStrategyCardP
     );
   }
 
-  const { monthlyAllocations, linearVsWeighted, recommendation, reasoning, practicalAllocation } = strategy;
+  const { monthlyAllocations, linearVsWeighted, recommendation, reasoning } = strategy;
+  
+  // Calculate practical allocation based on provided base amount
+  const practicalAllocation = monthlyAllocations.map(m => ({
+    month: m.monthLabel,
+    percentage: m.recommendedWeight * 100,
+    amount: recommendation === 'linear' 
+      ? `₹${baseAmount.toLocaleString('en-IN')}`
+      : `₹${Math.round(m.recommendedWeight * 12 * baseAmount).toLocaleString('en-IN')}`,
+  }));
 
   // Chart data
   const chartData = monthlyAllocations.map(m => ({
@@ -109,9 +120,9 @@ export function DistributionStrategyCard({ strategy }: DistributionStrategyCardP
           </div>
           <ArrowRight className="h-6 w-6 text-muted-foreground" />
           <div className="text-right">
-            <p className="text-sm text-muted-foreground">Over ₹1,00,000/year</p>
+            <p className="text-sm text-muted-foreground">Over ₹{yearlyAmount.toLocaleString('en-IN')}/year</p>
             <p className="text-xl font-bold">
-              ₹{Math.round(Math.abs(linearVsWeighted.potentialImprovement) * 1000).toLocaleString('en-IN')}
+              ₹{Math.round(Math.abs(linearVsWeighted.potentialImprovement) * yearlyAmount / 100).toLocaleString('en-IN')}
             </p>
           </div>
         </div>
@@ -159,7 +170,7 @@ export function DistributionStrategyCard({ strategy }: DistributionStrategyCardP
         {/* Practical Allocation Table */}
         {recommendation !== 'linear' && (
           <div>
-            <p className="text-sm font-medium mb-2">Suggested Monthly Allocation (₹10,000 base)</p>
+            <p className="text-sm font-medium mb-2">Suggested Monthly Allocation (₹{baseAmount.toLocaleString('en-IN')} base)</p>
             <div className="grid grid-cols-4 gap-2 text-xs">
               {practicalAllocation.map((alloc) => (
                 <div key={alloc.month} className="bg-muted/30 rounded p-2 text-center">
