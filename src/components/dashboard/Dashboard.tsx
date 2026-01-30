@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 
 import { useConsoleLog } from '@/hooks/useConsoleLog';
 import { useMutualFundAnalysis } from '@/hooks/useMutualFundAnalysis';
+import { useMultiTimeframeAnalysis } from '@/hooks/useMultiTimeframeAnalysis';
 import { FUNDS } from '@/types/mutualFund';
 import { filterByTimeframe } from '@/services/dateUtils';
 
@@ -20,6 +21,7 @@ import { WeekdayChart } from './WeekdayChart';
 import { MonthAnalysisChart } from './MonthAnalysisChart';
 import { QuarterAnalysisChart } from './QuarterAnalysisChart';
 import { AnalysisTable } from './AnalysisTable';
+import { MultiTimeframeSection } from './MultiTimeframeSection';
 
 export function Dashboard() {
   const { logs, log, clear } = useConsoleLog();
@@ -32,6 +34,9 @@ export function Dashboard() {
     setTimeframe,
     fetchData,
   } = useMutualFundAnalysis(log);
+
+  // Multi-timeframe analysis for comparison charts
+  const multiAnalysis = useMultiTimeframeAnalysis(fundsData, log);
 
   const [selectedFund, setSelectedFund] = useState<number | 'all'>('all');
 
@@ -138,6 +143,12 @@ export function Dashboard() {
 
           {/* Detailed Analysis Table */}
           <AnalysisTable analysis={currentAnalysis} />
+
+          {/* Multi-Timeframe Comparison Section */}
+          <MultiTimeframeSection 
+            multiAnalysis={multiAnalysis} 
+            selectedFund={selectedFund} 
+          />
         </div>
       </main>
 
